@@ -1,3 +1,4 @@
+// Public authentication routes (no token required)
 const express = require("express");
 const router = express.Router();
 const { registerPatient, registerAdmin, login } = require("../controllers/auth.controller");

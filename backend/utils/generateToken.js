@@ -1,7 +1,7 @@
+// Generates a signed JWT containing user id and role
 const jwt = require("jsonwebtoken");
 
-module.exports = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: "7d"
-  });
-};
+const generateToken = (id, role) =>
+  jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+module.exports = generateToken;
