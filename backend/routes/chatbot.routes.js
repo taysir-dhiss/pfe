@@ -1,4 +1,3 @@
-// Routes chatbot - sessions, messages, analyse symptômes (patient uniquement)
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth.middleware");
@@ -18,5 +17,14 @@ router.get("/sessions/:id/messages", isPatient, chatbotCtrl.getMessages);
 
 // Analyse symptômes → recommandations IA
 router.post("/analyser-symptomes", isPatient, chatbotCtrl.analyserSymptomes);
+
+// Initialize chatbot session with symptoms → welcome + suggestions
+router.post("/initialize", isPatient, chatbotCtrl.initializeWithSymptoms);
+
+// Share a session (generates a public token)
+router.post("/sessions/:id/share", isPatient, chatbotCtrl.shareSession);
+
+// Public read-only shared session view (no auth required)
+router.get("/share/:token", chatbotCtrl.getSharedSession);
 
 module.exports = router;

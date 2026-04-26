@@ -8,11 +8,8 @@ exports.createContent = async (req, res) => {
     if (!titre || !type) {
       return res.status(400).json({ message: "titre et type sont obligatoires" });
     }
-    if (type === "video" && !url) {
-      return res.status(400).json({ message: "url est obligatoire pour une vidéo" });
-    }
-    if (type === "article" && !contenu) {
-      return res.status(400).json({ message: "contenu est obligatoire pour un article" });
+    if (!contenu && !url) {
+      return res.status(400).json({ message: "Un contenu ou un lien est obligatoire" });
     }
     const content = await MedicalContent.create({ titre, type, contenu, url, createdBy: req.user.id });
     res.status(201).json(content);

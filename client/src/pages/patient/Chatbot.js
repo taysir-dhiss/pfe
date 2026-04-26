@@ -52,7 +52,11 @@ export default function Chatbot() {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     try {
+      console.log("Incoming message:", userMsg.contenu);
       const { data } = await api.post(`/chat/sessions/${active._id}/messages`, { contenu: userMsg.contenu });
+      console.log("Classification:", data.metadata);
+      console.log("AI result:", data.response?.contenu);
+      console.log("Final response:", data.response?.contenu);
       setMessages(prev => [...prev, data.response]);
     } catch {
       setMessages(prev => [...prev, { contenu: "Désolé, une erreur s'est produite.", role: "assistant_ia", dateEnvoi: new Date() }]);

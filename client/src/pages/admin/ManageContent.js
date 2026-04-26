@@ -1,4 +1,4 @@
-// ManageContent — admin CRUD for medical articles and videos
+// ManageContent — admin CRUD for medical articles and videos with link support
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
@@ -16,8 +16,7 @@ export default function ManageContent() {
     e.preventDefault();
     setMsg({ text: "", type: "" });
     if (!form.titre) return setMsg({ text: "Le titre est obligatoire.", type: "error" });
-    if (form.type === "article" && !form.contenu) return setMsg({ text: "Le contenu est obligatoire pour un article.", type: "error" });
-    if (form.type === "video" && !form.url) return setMsg({ text: "L'URL est obligatoire pour une vidéo.", type: "error" });
+    if (!form.contenu && !form.url) return setMsg({ text: "Un contenu ou un lien est obligatoire.", type: "error" });
     try {
       await api.post("/content", form);
       setMsg({ text: "Contenu publié avec succès.", type: "success" });
@@ -52,6 +51,7 @@ export default function ManageContent() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Type toggle */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
               <div className="flex gap-2">
@@ -64,27 +64,32 @@ export default function ManageContent() {
                 ))}
               </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
-              <input className="input" value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} />
+              <input className="input" value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} required />
             </div>
-            {form.type === "article" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contenu *</label>
-                <textarea className="input resize-none" rows={5} value={form.contenu} onChange={e => setForm({ ...form, contenu: e.target.value })} />
-              </div>
-            )}
-            {form.type === "video" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL de la vidéo *</label>
-                <input type="url" className="input" placeholder="https://..." value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} />
-              </div>
-            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea className="input resize-none" rows={3}
+                placeholder="Brève description du contenu..."
+                value={form.contenu} onChange={e => setForm({ ...form, contenu: e.target.value })} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lien {form.type === "video" ? "(YouTube, etc.) *" : "(Google, article externe)"}
+              </label>
+              <input type="url" className="input" placeholder="https://..."
+                value={form.url} onChange={e => setForm({ ...form, url: e.target.value }) } />
+            </div>
+
             <button className="btn-primary w-full">Publier</button>
           </form>
         </div>
 
-        {/* Content grid */}
+        {/* Content list */}
         <div className="lg:col-span-2 space-y-3">
           {content.length === 0 ? (
             <div className="card text-center text-gray-500 py-12">
@@ -93,20 +98,27 @@ export default function ManageContent() {
             </div>
           ) : content.map(c => (
             <div key={c._id} className="card flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">{c.type === "video" ? "🎬" : "📄"}</span>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-start gap-3 min-w-0">
+                <span className="text-2xl flex-shrink-0">{c.type === "video" ? "🎬" : "📄"}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className={`badge text-xs ${c.type === "video" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
                       {c.type === "video" ? "Vidéo" : "Article"}
                     </span>
+                    <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString("fr-FR")}</span>
                   </div>
-                  <p className="font-semibold text-gray-800">{c.titre}</p>
+                  <p className="font-semibold text-gray-800 truncate">{c.titre}</p>
                   {c.contenu && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{c.contenu}</p>}
-                  {c.url && <a href={c.url} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline mt-1 block">Voir la vidéo →</a>}
+                  {c.url && (
+                    <a href={c.url} target="_blank" rel="noreferrer"
+                      className="text-xs text-brand-600 hover:underline mt-1 block truncate">
+                      🔗 {c.url}
+                    </a>
+                  )}
                 </div>
               </div>
-              <button onClick={() => handleDelete(c._id)} className="text-red-400 hover:text-red-600 text-xl flex-shrink-0">🗑️</button>
+              <button onClick={() => handleDelete(c._id)}
+                className="text-gray-300 hover:text-red-500 transition text-xl flex-shrink-0">🗑️</button>
             </div>
           ))}
         </div>

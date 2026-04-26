@@ -19,7 +19,11 @@ const chatSessionSchema = new mongoose.Schema(
     },
     datefin: {
       type: Date
-    }
+    },
+    shareToken: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

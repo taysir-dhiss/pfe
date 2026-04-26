@@ -1,20 +1,23 @@
-// CRUD rendez-vous patient + gestion statut admin
+// Appointment controller — patient CRUD only, no status, no DB notifications
 const Appointment = require("../models/Appointment");
+
+const fmtTime = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const fmtDate = d => new Date(d).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
 // POST /api/appointments
 exports.createAppointment = async (req, res) => {
   try {
-    const { type, date, medecin } = req.body;
-    if (!date) {
-      return res.status(400).json({ message: "La date est obligatoire" });
-    }
+    const { type, date, medecin, customReminderDate } = req.body;
+    if (!date) return res.status(400).json({ message: "La date est obligatoire" });
+
     const appointment = await Appointment.create({
+      patientId: req.user.id,
       type,
       date,
       medecin,
-      patientId: req.user.id,
-      status: "pending"
+      customReminderDate: customReminderDate || null
     });
+
     res.status(201).json(appointment);
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -45,13 +48,17 @@ exports.getAppointmentById = async (req, res) => {
 // PUT /api/appointments/:id
 exports.updateAppointment = async (req, res) => {
   try {
-    const { status, patientId, ...data } = req.body;
-    const appointment = await Appointment.findOneAndUpdate(
-      { _id: req.params.id, patientId: req.user.id },
-      data,
-      { new: true, runValidators: true }
-    );
-    if (!appointment) return res.status(404).json({ message: "Rendez-vous introuvable" });
+    const { patientId, reminderSent, customReminderSent, ...data } = req.body;
+
+    const existing = await Appointment.findOne({ _id: req.params.id, patientId: req.user.id });
+    if (!existing) return res.status(404).json({ message: "Rendez-vous introuvable" });
+
+    // Reset reminder flag if date changed so the 4h reminder fires again
+    if (data.date && new Date(data.date).getTime() !== existing.date.getTime()) {
+      data.reminderSent = false;
+    }
+
+    const appointment = await Appointment.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
     res.json(appointment);
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -69,28 +76,30 @@ exports.deleteAppointment = async (req, res) => {
   }
 };
 
-// GET /api/admin/appointments  (admin)
-exports.getAllAppointments = async (req, res) => {
+// POST /api/appointments/:id/reminder  — set custom reminder datetime
+exports.setCustomReminder = async (req, res) => {
   try {
-    const appointments = await Appointment.find()
-      .populate("patientId", "nom email")
-      .sort({ date: 1 });
-    res.json(appointments);
+    const { customReminderDate } = req.body;
+    if (!customReminderDate) return res.status(400).json({ message: "La date de rappel est obligatoire" });
+
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, patientId: req.user.id },
+      { customReminderDate: new Date(customReminderDate), customReminderSent: false },
+      { new: true }
+    );
+    if (!appointment) return res.status(404).json({ message: "Rendez-vous introuvable" });
+    res.json(appointment);
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
 
-// PUT /api/admin/appointments/:id/status  (admin)
-exports.updateStatus = async (req, res) => {
+// DELETE /api/appointments/:id/reminder  — remove custom reminder
+exports.removeCustomReminder = async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!["pending", "confirmed", "cancelled"].includes(status)) {
-      return res.status(400).json({ message: "Statut invalide" });
-    }
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      { status },
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: req.params.id, patientId: req.user.id },
+      { customReminderDate: null, customReminderSent: false },
       { new: true }
     );
     if (!appointment) return res.status(404).json({ message: "Rendez-vous introuvable" });

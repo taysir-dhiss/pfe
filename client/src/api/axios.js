@@ -12,11 +12,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear storage and redirect to login
+// On 401 or 403, clear stale session and redirect to login
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status;
+    if (status === 401 || status === 403) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";
