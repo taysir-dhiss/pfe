@@ -26,7 +26,9 @@ const recommendationSchema = new mongoose.Schema(
       type: String,
       enum: ["faible", "modere", "eleve", "urgent"],
       default: "modere"
-    }
+    },
+    // Embedding of `contenu` — stored for semantic similarity lookups in sendMessage.
+    embedding: { type: [Number], default: [] },
   },
   { timestamps: true }
 );

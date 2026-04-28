@@ -28,10 +28,6 @@ const { startScheduler } = require("./utils/scheduler");
 const app = express();
 const httpServer = http.createServer(app);
 
-connectDB();
-startScheduler();
-initSocket(httpServer);
-
 app.use(cors());
 app.use(express.json());
 
@@ -52,4 +48,35 @@ app.get("/", (_req, res) => res.send("Backend is running"));
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+httpServer.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.warn(`[server] Port ${PORT} busy — killing occupying process and retrying in 1 s…`);
+    const { execSync } = require("child_process");
+    try {
+      if (process.platform === "win32") {
+        execSync(
+          `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${PORT} ^| findstr LISTENING') do taskkill /PID %a /F`,
+          { shell: "cmd.exe", stdio: "ignore" }
+        );
+      } else {
+        execSync(`fuser -k ${PORT}/tcp`, { stdio: "ignore" });
+      }
+    } catch { /* process may have already exited */ }
+    setTimeout(() => httpServer.listen(PORT), 1000);
+  } else {
+    console.error("[server] Fatal error:", err);
+    process.exit(1);
+  }
+});
+
+// Connect to MongoDB FIRST — only open the port once the DB is ready.
+// This prevents "MongoNotConnectedError" 500s on the first requests after restart.
+connectDB().then(() => {
+  startScheduler();
+  initSocket(httpServer);
+  httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}).catch((err) => {
+  console.error("[server] MongoDB connection failed — aborting startup:", err.message);
+  process.exit(1);
+});

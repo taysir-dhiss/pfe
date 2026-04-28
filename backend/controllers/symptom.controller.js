@@ -57,11 +57,10 @@ exports.updateSymptom = async (req, res) => {
   }
 };
 
-// DELETE /api/symptoms/:id
+// DELETE /api/symptoms/:id  (idempotent — 200 even if already gone)
 exports.deleteSymptom = async (req, res) => {
   try {
-    const symptom = await Symptom.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
-    if (!symptom) return res.status(404).json({ message: "Symptôme introuvable" });
+    await Symptom.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
     res.json({ message: "Symptôme supprimé" });
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });

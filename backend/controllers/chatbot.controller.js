@@ -1,6 +1,9 @@
 // ChatbotService - gestion sessions, messages, analyse symptômes via OpenAI (AIProvider)
 const crypto = require("crypto");
 const OpenAI = require("openai");
+const AIAnalysisService = require("../services/AIAnalysisService");
+const SemanticService = require("../services/SemanticService");
+const aiLogger = require("../utils/aiLogger");
 const ChatSession = require("../models/ChatSession");
 const ChatMessage = require("../models/ChatMessage");
 const Recommendation = require("../models/Recommendation");
@@ -24,12 +27,31 @@ const getOpenAI = () => {
   return openai;
 };
 
-// ─── Local fallback responses (used when OpenAI is unavailable) ───────────────
+// ── Text normalization — strips accents, apostrophes, punctuation ─────────────
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")  // é→e, à→a, ç→c …
+    .replace(/['’‘\-]/g, " ") // apostrophes + hyphens → space
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // ─── Local fallback responses (used ONLY when OpenAI is unavailable) ─────────
 const LOCAL_RESPONSES = [
   {
-    keywords: ["douleur", "mal", "douleurs", "douloureux", "souffrance", "soulager"],
+    category: "douleur",
+    keywords: [
+      "douleur", "mal", "douleurs", "douloureux", "souffrance", "soulager",
+      "souffre", "souffrir", "souffrez", "j'ai mal", "fait mal", "ça fait mal",
+      "brûlure", "brûle", "crampe", "crampes", "élancement", "sensible",
+      "gêne", "gênant", "inconfort", "endolori", "endolorie", "meurtri",
+      "courbature", "lancinant", "lancinante", "tiraillement", "cuisson",
+      "douleur au sein", "douleur poitrine", "douleur thoracique", "douleur au dos",
+      "mal partout", "douleurs diffuses", "douleurs musculaires", "articulaire",
+    ],
     response: `La douleur est l'un des symptômes les plus fréquents lors du traitement du cancer du sein. Voici quelques conseils pour la gérer :
 
 **Médicaments** : Des antalgiques (paracétamol, ibuprofène) peuvent être prescrits par votre médecin selon l'intensité.
@@ -42,7 +64,15 @@ Si la douleur est intense (≥ 7/10) ou persistante, contactez votre équipe mé
 ${DISCLAIMER}`
   },
   {
-    keywords: ["fatigue", "épuisement", "épuisé", "fatigué", "fatiguée", "énergie", "las", "lasse"],
+    category: "fatigue",
+    keywords: [
+      "fatigue", "épuisement", "épuisé", "fatigué", "fatiguée", "énergie", "las", "lasse",
+      "épuiser", "exténuée", "exténué", "sans force", "sans énergie", "vidée", "vidé",
+      "crevée", "crevé", "alité", "alitée", "lourd", "lourde",
+      "somnolence", "somnolent", "somnolente", "dormir tout le temps",
+      "plus d'énergie", "plus de force", "je n'en peux plus", "à bout",
+      "épuisante", "épuisant", "je suis à plat",
+    ],
     response: `La fatigue liée au cancer (ou fatigue oncologique) est différente de la fatigue ordinaire — elle ne disparaît pas avec le repos seul. C'est le symptôme le plus reporté pendant les traitements.
 
 **Conseils pratiques :**
@@ -57,7 +87,13 @@ Parlez-en à votre oncologue si la fatigue interfère avec vos activités essent
 ${DISCLAIMER}`
   },
   {
-    keywords: ["nausée", "nausées", "vomissement", "vomissements", "vomis", "envie de vomir"],
+    category: "nausée",
+    keywords: [
+      "nausée", "nausées", "vomissement", "vomissements", "vomis", "envie de vomir",
+      "vomir", "haut-le-cœur", "haut le cœur", "mal au cœur", "cœur qui tourne",
+      "nauséeux", "nauséeuse", "régurgitation", "reflux", "estomac retourné",
+      "je vomis", "j'ai vomi", "mal à l'estomac", "nauseux",
+    ],
     response: `Les nausées et vomissements sont fréquents, surtout durant la chimiothérapie. Des médicaments antiémétiques très efficaces existent — n'hésitez pas à les demander à votre médecin.
 
 **Entre les traitements :**
@@ -72,7 +108,14 @@ Si vous vomissez plus de 3 fois en 24h ou si vous ne pouvez rien garder, consult
 ${DISCLAIMER}`
   },
   {
-    keywords: ["insomnie", "dormir", "sommeil", "nuit", "réveil", "endormir"],
+    category: "insomnie",
+    keywords: [
+      "insomnie", "dormir", "sommeil", "nuit", "réveil", "endormir",
+      "nuit blanche", "nuits blanches", "je ne dors pas", "je ne dors plus",
+      "impossible de dormir", "du mal à dormir", "je n'arrive pas à dormir",
+      "réveillée la nuit", "me réveille", "cauchemar", "cauchemars",
+      "insomnique", "sommeil agité", "sommeil perturbé", "veille", "veiller",
+    ],
     response: `Les troubles du sommeil touchent environ 50% des personnes en traitement oncologique. Ils peuvent être causés par l'anxiété, les médicaments ou les douleurs.
 
 **Hygiène du sommeil :**
@@ -88,7 +131,14 @@ Une thérapie cognitivo-comportementale pour l'insomnie (TCC-I) est la méthode 
 ${DISCLAIMER}`
   },
   {
-    keywords: ["appétit", "manger", "alimentation", "nourriture", "repas", "poids", "amaigrissement", "maigrir"],
+    category: "appétit",
+    keywords: [
+      "appétit", "manger", "alimentation", "nourriture", "repas", "poids", "amaigrissement", "maigrir",
+      "je ne mange plus", "je ne mange pas", "plus faim", "pas faim",
+      "perte de poids", "je maigris", "dégoût alimentaire", "rien avaler",
+      "anorexie", "anorexique", "manque d'appétit", "perte d'appétit",
+      "difficulté à manger", "ne supporte pas manger", "avaler",
+    ],
     response: `La perte d'appétit est courante lors des traitements du cancer. Maintenir une bonne nutrition est important pour votre énergie et votre guérison.
 
 **Stratégies pour manger malgré l'appétit réduit :**
@@ -103,7 +153,14 @@ Si vous perdez plus de 5% de votre poids en un mois, signalez-le à votre équip
 ${DISCLAIMER}`
   },
   {
-    keywords: ["essoufflement", "respiration", "souffle", "haleine", "respirer", "poumon"],
+    category: "essoufflement",
+    keywords: [
+      "essoufflement", "respiration", "souffle", "haleine", "respirer", "poumon",
+      "manque de souffle", "souffle court", "dyspnée", "du mal à respirer",
+      "difficulté à respirer", "j'étouffe", "oppression", "gorge serrée",
+      "suffoque", "suffoquer", "haleter", "haletant", "manque d'air",
+      "souffle coupé", "je n'arrive pas à respirer",
+    ],
     response: `L'essoufflement (dyspnée) peut avoir plusieurs causes chez les patientes traitées pour un cancer du sein : anémie, anxiété, épanchement pleural ou effets du traitement.
 
 **Mesures immédiates :**
@@ -122,7 +179,14 @@ Dans ces cas, il peut s'agir d'une urgence médicale nécessitant une évaluatio
 ${DISCLAIMER}`
   },
   {
-    keywords: ["chimio", "chimiothérapie", "traitement", "radiothérapie", "hormonothérapie", "immunothérapie"],
+    category: "traitement",
+    keywords: [
+      "chimio", "chimiothérapie", "traitement", "radiothérapie", "hormonothérapie", "immunothérapie",
+      "séance", "protocole", "perfusion", "anticancéreux", "cure", "cycles",
+      "effets secondaires", "effet secondaire", "ma chimio", "la chimio",
+      "irradiation", "rayonnement", "tamoxifène", "mon traitement",
+      "chimioth", "radioth", "hormonoth",
+    ],
     response: `Les traitements du cancer du sein (chimiothérapie, radiothérapie, hormonothérapie) peuvent provoquer des effets secondaires variés. La bonne nouvelle : il existe des solutions pour les gérer.
 
 **Effets fréquents et leur gestion :**
@@ -137,7 +201,15 @@ Chaque patiente réagit différemment aux traitements. Notez vos symptômes dans
 ${DISCLAIMER}`
   },
   {
-    keywords: ["anxiété", "anxieux", "anxieuse", "peur", "stress", "inquiète", "inquiet", "angoisse", "déprime", "moral"],
+    category: "anxiété",
+    keywords: [
+      "anxiété", "anxieux", "anxieuse", "peur", "stress", "inquiète", "inquiet", "angoisse", "déprime", "moral",
+      "tristesse", "triste", "pleurer", "pleure", "larmes", "je pleure",
+      "j'ai peur", "panique", "paniquée", "crise d'angoisse", "angoisser",
+      "dépression", "dépressive", "dépressif", "mélancolie",
+      "cafard", "pas le moral", "désespoir", "perdre espoir", "plus envie",
+      "peur de mourir", "peur de rechuter", "je vais mal", "mal dans ma peau",
+    ],
     response: `Il est tout à fait normal de ressentir de l'anxiété, de la peur ou de la tristesse face au cancer. Ces émotions font partie du parcours et méritent autant d'attention que les symptômes physiques.
 
 **Ce qui peut aider :**
@@ -152,7 +224,14 @@ Un soutien psychologique professionnel est remboursé dans le cadre du parcours 
 ${DISCLAIMER}`
   },
   {
-    keywords: ["stade", "pronostic", "guérison", "survie", "métastase"],
+    category: "stade",
+    keywords: [
+      "stade", "pronostic", "guérison", "survie", "métastase",
+      "stade 1", "stade 2", "stade 3", "stade 4", "stade i", "stade ii", "stade iii", "stade iv",
+      "grade", "grade tumeur", "chances de guérison", "taux de survie",
+      "rechute", "récidive", "cancer généralisé", "ganglion", "ganglions",
+      "curage ganglionnaire", "espérance de vie",
+    ],
     response: `Le stade du cancer détermine l'étendue de la maladie et guide les décisions de traitement. Les stades vont de I (très localisé) à IV (avec métastases).
 
 **Taux de survie à 5 ans (données générales) :**
@@ -168,7 +247,13 @@ Votre oncologue est la meilleure personne pour vous donner une information perso
 ${DISCLAIMER}`
   },
   {
-    keywords: ["signifient", "signifie", "veut dire", "comprendre", "expliquer", "pourquoi"],
+    category: "compréhension",
+    keywords: [
+      "signifient", "signifie", "veut dire", "comprendre", "expliquer", "pourquoi",
+      "qu'est-ce que", "c'est quoi", "que veut dire", "est-ce normal", "c'est grave",
+      "est-ce grave", "est-ce dangereux", "je ne comprends pas", "explication",
+      "c'est normal", "normal de ressentir",
+    ],
     response: `C'est tout à fait légitime de vouloir comprendre ce que signifient vos symptômes. Voici quelques points généraux :
 
 **Principes importants :**
@@ -187,7 +272,14 @@ N'hésitez jamais à appeler votre équipe médicale en cas de doute.
 ${DISCLAIMER}`
   },
   {
-    keywords: ["préoccupant", "grave", "danger", "urgent", "urgence", "inquiétant"],
+    category: "urgence",
+    keywords: [
+      "préoccupant", "grave", "danger", "urgent", "urgence", "inquiétant",
+      "fièvre", "température élevée", "saignement", "saigne", "sang",
+      "gonflement", "gonfle", "enfle", "œdème", "hématome",
+      "confusion", "désorientée", "désorientation", "chute",
+      "palpitations", "cœur qui bat vite", "très grave", "très urgent",
+    ],
     response: `Certains symptômes nécessitent une attention médicale rapide. Voici les signes d'alerte à surveiller :
 
 **Consultez en urgence si vous avez :**
@@ -208,6 +300,48 @@ En cas de doute, il vaut toujours mieux appeler votre équipe soignante — ils 
 ${DISCLAIMER}`
   },
 ];
+
+// ── Symptom category detector — normalized + scored keyword matching ──────────
+/**
+ * Detects which medical topic best matches the user message.
+ * Scores each LOCAL_RESPONSES entry using normalized text comparison:
+ *   3 pts — exact word match or multi-word phrase found
+ *   2 pts — user word starts with keyword stem (≥4 chars)
+ *   1 pt  — keyword starts with user word (≥4 chars, partial)
+ * Returns the highest-scoring entry, or null if nothing matched.
+ */
+function detectSymptomCategory(userMessage) {
+  const normalized = normalizeText(userMessage);
+  const words = normalized.split(/\s+/);
+
+  let bestEntry = null;
+  let bestScore = 0;
+
+  for (const entry of LOCAL_RESPONSES) {
+    let score = 0;
+    for (const kw of entry.keywords) {
+      const nkw = normalizeText(kw);
+      if (!nkw) continue;
+
+      if (nkw.includes(" ")) {
+        // Multi-word phrase — check presence in the full normalized text
+        if (normalized.includes(nkw)) score += 3;
+      } else if (words.includes(nkw)) {
+        score += 3; // Exact word match
+      } else if (nkw.length >= 4 && words.some((w) => w.startsWith(nkw))) {
+        score += 2; // "fatigues" → matches "fatigu" stem
+      } else if (nkw.length >= 5 && words.some((w) => nkw.startsWith(w) && w.length >= 4)) {
+        score += 1; // "chimioth" → matches "chimio"
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestEntry = entry;
+    }
+  }
+
+  return bestScore > 0 ? bestEntry : null;
+}
 
 // ─── Local preliminary analysis (no OpenAI needed) ───────────────────────────
 
@@ -272,12 +406,8 @@ ${DISCLAIMER}`;
 }
 
 function localFallbackResponse(userMessage) {
-  const text = userMessage.toLowerCase();
-  for (const entry of LOCAL_RESPONSES) {
-    if (entry.keywords.some((kw) => text.includes(kw))) {
-      return entry.response;
-    }
-  }
+  const match = detectSymptomCategory(userMessage);
+  if (match) return match.response;
   // Generic fallback
   return `Merci pour votre question. Je suis votre assistante médicale spécialisée en oncologie, et je suis là pour vous accompagner.
 
@@ -439,74 +569,144 @@ exports.closeSession = async (req, res) => {
 
 // POST /api/chat/sessions/:id/messages
 exports.sendMessage = async (req, res) => {
+  // Debug context — populated at each step, dumped to console on error
+  let _debug = { contenu: null, classification: null, aiResult: null, finalResponse: null };
+
   try {
     const { contenu } = req.body;
     if (!contenu) return res.status(400).json({ message: "Le message ne peut pas être vide" });
+
+    _debug.contenu = contenu;
+    console.log("Incoming message:", contenu);
+
+    // ── Category detection (sync, no API call) ────────────────────────────────
+    const detectedEntry    = detectSymptomCategory(contenu);
+    const detectedCategory = detectedEntry?.category ?? null;
+    if (detectedCategory) console.log("Detected category:", detectedCategory);
 
     const session = await ChatSession.findOne({ _id: req.params.id, patientId: req.user.id });
     if (!session) return res.status(404).json({ message: "Session introuvable" });
     if (session.datefin) return res.status(400).json({ message: "Session terminée" });
 
-    console.log("Incoming message:", contenu);
-
     // Save patient message
     await ChatMessage.create({ sessionId: session._id, contenu, role: "patient" });
 
-    // Fetch conversation history (includes message just saved)
+    // Fetch conversation history
     const history = await ChatMessage.find({ sessionId: session._id })
       .sort({ dateEnvoi: 1 })
       .limit(20);
 
+    const sessionId = session._id.toString();
+    aiLogger.log("user_input", { sessionId, contentLength: contenu.length, preview: contenu.slice(0, 200) });
+
+    // ── Step 0: Semantic Similarity Lookup ────────────────────────────────────
+    let semanticCtx = { tier: "none", context: null, score: 0 };
+    try {
+      semanticCtx = await SemanticService.findSemanticContext(contenu, req.user.id);
+      aiLogger.log("semantic_lookup", { tier: semanticCtx.tier, score: semanticCtx.score?.toFixed(4) }, { sessionId });
+    } catch (err) {
+      aiLogger.logError("semantic_lookup_failed", err, { sessionId });
+    }
+    console.log("Semantic lookup:", { tier: semanticCtx.tier, score: semanticCtx.score?.toFixed(4) });
+
     // ── Step 1: AI Symptom Classification ────────────────────────────────────
     let classification;
     try {
-      classification = await classifySymptoms(contenu, history);
-      console.log("Classification:", classification);
+      classification = await AIAnalysisService.classifySymptoms(contenu, history);
+      aiLogger.log("classification", classification, { sessionId });
     } catch (err) {
-      console.log("[CHATBOT] Classifier failed, using default:", err.message);
-      classification = { symptoms: [], severity: "moderate", confidence: 0.5 };
+      aiLogger.logError("classification_failed", err, { sessionId });
+      // Fallback metadata — pipeline continues with degraded confidence
+      classification = { symptoms: [], severity: "moderate", confidence: 0.3 };
     }
+    _debug.classification = classification;
+    console.log("Classification:", classification);
 
-    // ── Step 2: AI Medical Response Generation ────────────────────────────────
-    let aiResponse;
+    // ── Step 2: Medical Reasoning ─────────────────────────────────────────────
+    const needsConsultation =
+      semanticCtx.tier === "medium" ||
+      ["high", "critical"].includes(classification.severity) ||
+      classification.confidence < 0.5;
+
+    let analysis;
     try {
-      aiResponse = await generateMedicalResponse(contenu, classification, history, session.type);
-      if (!aiResponse.includes("⚕️")) aiResponse += `\n\n${DISCLAIMER}`;
-      console.log("AI result:", aiResponse);
+      analysis = await AIAnalysisService.generateMedicalAnalysis(classification, {
+        userMessage:      contenu,
+        history,
+        sessionType:      session.type,
+        semanticContext:  semanticCtx.context,
+        semanticTier:     semanticCtx.tier,
+        needsConsultation,
+        detectedCategory,
+      });
+      aiLogger.log("medical_reasoning", {
+        analysisPreview:      analysis.analysis?.slice(0, 150),
+        recommendationCount:  analysis.recommendations?.length,
+      }, { sessionId });
     } catch (err) {
-      console.log("[CHATBOT] AI response failed, using fallback:", err.message);
-      aiResponse = localFallbackResponse(contenu);
+      aiLogger.logError("medical_reasoning_failed", err, { sessionId });
+      analysis = { analysis: null, recommendations: [] };
     }
+    _debug.aiResult = analysis;
+    console.log("AI result:", analysis);
 
     // ── Step 3: Safety Filter ─────────────────────────────────────────────────
-    // critical  → hard escalation:  banner + auto-redirect to /appointments
-    // high / low confidence → soft escalation: AI already suggested it in text, flag for UI hint
-    const requiresEscalation = classification.severity === "critical";
-    const suggestsAppointment = classification.severity === "high" || classification.confidence < 0.6;
+    const safety = AIAnalysisService.applySafetyFilter(classification);
+    aiLogger.log("safety_filter", safety, { sessionId });
 
-    if (requiresEscalation) {
-      aiResponse = `🚨 **Symptômes critiques détectés — Consultez votre équipe médicale immédiatement**\n\n${aiResponse}\n\n**Ne tardez pas : prenez rendez-vous ou appelez votre service d'oncologie dès maintenant.**`;
-    }
+    // ── Step 4: Build Final Response ──────────────────────────────────────────
+    const finalResponse = AIAnalysisService.buildFinalResponse({
+      contenu,
+      classification,
+      analysis,
+      safety,
+      fallbackText: localFallbackResponse(contenu),
+    });
+    _debug.finalResponse = finalResponse;
+    console.log("Final response:", finalResponse);
 
-    console.log("Final response:", aiResponse);
+    aiLogger.log("final_response", {
+      requiresEscalation: safety.requiresEscalation,
+      responseLength:     finalResponse.length,
+      preview:            finalResponse.slice(0, 120),
+    }, { sessionId });
 
-    // ── Step 4: Build metadata ────────────────────────────────────────────────
+    // ── Step 5: Metadata enrichment + save ───────────────────────────────────
     const metadata = {
       confidence: classification.confidence,
       severity:   classification.severity,
       symptoms:   classification.symptoms,
     };
 
-    // ── Step 5: Save bot message with metadata ────────────────────────────────
     const botMessage = await ChatMessage.create({
       sessionId: session._id,
-      contenu:   aiResponse,
+      contenu:   finalResponse,
       role:      "assistant_ia",
       metadata,
     });
 
-    res.json({ response: botMessage, metadata, requiresEscalation, suggestsAppointment });
+    aiLogger.logPipelineSummary({
+      sessionId,
+      severity:           classification.severity,
+      confidence:         classification.confidence,
+      requiresEscalation: safety.requiresEscalation,
+      responseLength:     finalResponse.length,
+    });
+
+    res.json({
+      response:            botMessage,
+      metadata,
+      requiresEscalation:  safety.requiresEscalation,
+      suggestsAppointment: safety.suggestsAppointment || false,
+    });
   } catch (err) {
+    console.error("=== sendMessage pipeline error ===");
+    console.error("Error:", err.message);
+    console.error("Incoming message:", _debug.contenu);
+    console.error("Classification:", _debug.classification);
+    console.error("AI result:", _debug.aiResult);
+    console.error("Final response:", _debug.finalResponse);
+    console.error("==================================");
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
@@ -579,6 +779,16 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
         })
       )
     );
+
+    // Fire-and-forget: compute and store embeddings on each new recommendation
+    (async () => {
+      for (const rec of saved) {
+        try {
+          const emb = await SemanticService.generateEmbedding(rec.contenu);
+          await Recommendation.findByIdAndUpdate(rec._id, { embedding: emb });
+        } catch { /* ignore — non-blocking */ }
+      }
+    })();
 
     res.json({ recommandations: saved });
   } catch (err) {

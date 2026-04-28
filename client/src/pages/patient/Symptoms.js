@@ -381,14 +381,16 @@ export default function Symptoms() {
 
   const bottomRef = useRef(null);
 
-  const loadSymptoms     = () => api.get("/symptoms").then(({ data }) => setSymptoms(data)).finally(() => setLoading(false));
+  const loadSymptoms     = () => api.get("/symptoms").then(({ data }) => setSymptoms(data)).catch(() => {}).finally(() => setLoading(false));
   const loadPastSessions = () => api.get("/chat/sessions").then(({ data }) => setPastSessions(data)).catch(() => {});
 
   useEffect(() => { loadSymptoms(); loadPastSessions(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, typing]);
 
   const handleDeleteSymptom = async (id) => {
-    await api.delete(`/symptoms/${id}`);
+    try {
+      await api.delete(`/symptoms/${id}`);
+    } catch { /* already deleted — ignore */ }
     setSymptoms((prev) => prev.filter((s) => s._id !== id));
   };
 

@@ -21,6 +21,8 @@ export default function PatientDashboard() {
       setProfile(pRes.data);
       setForm(pRes.data);
       setAppoints(aRes.data || []);
+    }).catch(() => {
+      setMsg({ text: "Impossible de charger vos données. Vérifiez votre connexion et réessayez.", type: "error" });
     }).finally(() => setLoading(false));
   }, []);
 
