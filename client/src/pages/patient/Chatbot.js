@@ -1,8 +1,10 @@
-// Chatbot — AI chat interface with session management
+// Page Chatbot — interface de chat IA avec gestion des sessions (version simplifiée)
+// Utilisée comme version alternative à ChatbotAI.js (interface complète)
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
+// Libellés lisibles pour chaque type de session chatbot
 const SESSION_LABELS = {
   general_support:  "Support général",
   analyseSymptome:  "Analyse de symptômes",
@@ -10,14 +12,14 @@ const SESSION_LABELS = {
 };
 
 export default function Chatbot() {
-  const [sessions, setSessions] = useState([]);
-  const [active, setActive] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [sessionType, setSessionType] = useState("general_support");
-  const bottomRef = useRef(null);
+  const [sessions, setSessions]   = useState([]);              // Historique des sessions ouvertes
+  const [active, setActive]       = useState(null);            // Session active sélectionnée
+  const [messages, setMessages]   = useState([]);              // Messages de la session active
+  const [input, setInput]         = useState("");              // Contenu du champ de saisie
+  const [loading, setLoading]     = useState(true);            // Chargement initial des sessions
+  const [sending, setSending]     = useState(false);           // Envoi d'un message en cours
+  const [sessionType, setSessionType] = useState("general_support"); // Type de la nouvelle session
+  const bottomRef = useRef(null); // Référence pour le défilement automatique vers le dernier message
 
   const loadSessions = () =>
     api.get("/chat/sessions").then(({ data }) => setSessions(data)).finally(() => setLoading(false));
@@ -81,13 +83,13 @@ export default function Chatbot() {
           <button onClick={createSession} className="btn-primary w-full text-sm">+ Démarrer</button>
 
           <div className="mt-4 space-y-1">
-            <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Sessions</p>
+            <p className="text-xs font-semibold text-gray-700 uppercase mb-2">Sessions</p>
             {sessions.map(s => (
               <button key={s._id} onClick={() => setActive(s)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${active?._id === s._id ? "bg-brand-100 text-brand-700 font-semibold" : "hover:bg-gray-50 text-gray-600"}`}>
                 <span className="block truncate">{SESSION_LABELS[s.type]}</span>
-                <span className="text-xs text-gray-400">{new Date(s.dateDebut).toLocaleDateString("fr-FR")}</span>
-                {s.datefin && <span className="ml-1 text-xs text-gray-400">(terminée)</span>}
+                <span className="text-xs text-gray-700">{new Date(s.dateDebut).toLocaleDateString("fr-FR")}</span>
+                {s.datefin && <span className="ml-1 text-xs text-gray-700">(terminée)</span>}
               </button>
             ))}
           </div>
@@ -96,7 +98,7 @@ export default function Chatbot() {
         {/* Chat window */}
         <div className="lg:col-span-3">
           {!active ? (
-            <div className="card flex flex-col items-center justify-center py-24 text-gray-400">
+            <div className="card flex flex-col items-center justify-center py-24 text-gray-700">
               <p className="text-5xl mb-4">💬</p>
               <p>Sélectionnez ou créez une session pour démarrer.</p>
             </div>
@@ -113,7 +115,7 @@ export default function Chatbot() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                 {messages.length === 0 && (
-                  <p className="text-center text-gray-400 text-sm mt-8">Envoyez un message pour commencer.</p>
+                  <p className="text-center text-gray-700 text-sm mt-8">Envoyez un message pour commencer.</p>
                 )}
                 {messages.map((m, i) => (
                   <div key={i} className={`flex ${m.role === "patient" ? "justify-end" : "justify-start"}`}>

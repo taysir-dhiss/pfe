@@ -1,4 +1,5 @@
-// Recommendations — Centered animated wellness chatbot
+// Page Recommandations — affiche les recommandations médicales générées par l'IA pour la patiente
+// Ces recommandations sont créées automatiquement après l'analyse des symptômes déclarés
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";

@@ -1,37 +1,44 @@
-// Symptoms — popup modal declaration + AI analysis + inline chat
+// Page Symptômes — déclaration via une modale popup, analyse IA et chat en ligne
+// Permet à la patiente de saisir ses symptômes, les visualiser et lancer une analyse IA
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
+// Types de symptômes prédéfinis dans le formulaire de déclaration
 const TYPES = [
   "Douleur", "Fatigue", "Nausée", "Vomissement",
   "Essoufflement", "Insomnie", "Perte d'appétit", "Autre",
 ];
 
+// Retourne les classes CSS et le libellé correspondant à l'intensité d'un symptôme
 const intensiteLevel = (n) =>
   n >= 8 ? { label: "Sévère",   bar: "bg-red-400",    pill: "bg-red-50 text-red-600 border-red-200",     track: "#fca5a5" }
 : n >= 5 ? { label: "Modérée",  bar: "bg-amber-400",   pill: "bg-amber-50 text-amber-600 border-amber-200", track: "#fcd34d" }
          : { label: "Faible",   bar: "bg-emerald-400", pill: "bg-emerald-50 text-emerald-600 border-emerald-200", track: "#6ee7b7" };
 
-// ─── Symptom Popup Modal ───────────────────────────────────────────────────────
+// ─── Modale de déclaration de symptôme ────────────────────────────────────────
+// Composant réutilisable affichant un formulaire en popup pour ajouter un symptôme
 function SymptomModal({ open, onClose, onAdded }) {
-  const [form, setForm]           = useState({ type: TYPES[0], intensite: 5 });
-  const [justAdded, setJustAdded] = useState(false);
+  const [form, setForm]           = useState({ type: TYPES[0], intensite: 5 }); // Formulaire du symptôme
+  const [justAdded, setJustAdded] = useState(false); // Affiche un message de confirmation après ajout
   const [error, setError]         = useState("");
-  const [adding, setAdding]       = useState(false);
-  const [closing, setClosing]     = useState(false);
+  const [adding, setAdding]       = useState(false); // Indicateur de chargement pendant l'envoi
+  const [closing, setClosing]     = useState(false); // Animation de fermeture de la modale
 
+  // Réinitialise le formulaire chaque fois que la modale s'ouvre
   useEffect(() => {
     if (open) { setForm({ type: TYPES[0], intensite: 5 }); setJustAdded(false); setError(""); setClosing(false); }
   }, [open]);
 
+  // Ferme la modale avec la touche Échap
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") handleClose(); };
     if (open) document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   });
 
+  // Lance l'animation de fermeture puis appelle onClose après 180ms
   const handleClose = () => {
     setClosing(true);
     setTimeout(() => { setClosing(false); onClose(); }, 180);
@@ -76,12 +83,12 @@ function SymptomModal({ open, onClose, onAdded }) {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-800 leading-none">Déclarer un Symptôme</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Renseignez le type et l'intensité</p>
+                <p className="text-xs text-gray-700 mt-0.5">Renseignez le type et l'intensité</p>
               </div>
             </div>
             <button
               onClick={handleClose}
-              className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition"
+              className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 hover:text-gray-600 transition"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -98,7 +105,7 @@ function SymptomModal({ open, onClose, onAdded }) {
 
                 {/* Type dropdown */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                     Type de symptôme
                   </label>
                   <div className="relative">
@@ -109,7 +116,7 @@ function SymptomModal({ open, onClose, onAdded }) {
                     >
                       {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
-                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-700">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                       </svg>
@@ -124,7 +131,7 @@ function SymptomModal({ open, onClose, onAdded }) {
                         className={`text-xs px-3.5 py-1.5 rounded-full font-medium border transition ${
                           form.type === t
                             ? "bg-pink-500 text-white border-pink-500 shadow-sm"
-                            : "bg-white text-gray-500 border-gray-200 hover:border-pink-300 hover:text-pink-500"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-pink-300 hover:text-pink-500"
                         }`}
                       >{t}</button>
                     ))}
@@ -134,7 +141,7 @@ function SymptomModal({ open, onClose, onAdded }) {
                 {/* Intensity slider */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Intensité</label>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Intensité</label>
                     <span className={`text-xs font-bold px-3 py-1 rounded-full border ${lvl.pill}`}>
                       {form.intensite}/10 — {lvl.label}
                     </span>
@@ -151,14 +158,14 @@ function SymptomModal({ open, onClose, onAdded }) {
                   <div className="flex justify-between mt-1.5 px-0.5">
                     {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                       <span key={n} className={`text-[10px] font-medium transition ${
-                        n === form.intensite ? "text-pink-500 font-bold" : "text-gray-300"
+                        n === form.intensite ? "text-pink-500 font-bold" : "text-gray-600"
                       }`}>{n}</span>
                     ))}
                   </div>
                   <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-gray-400">Faible</span>
-                    <span className="text-[10px] text-gray-400">Modérée</span>
-                    <span className="text-[10px] text-gray-400">Sévère</span>
+                    <span className="text-[10px] text-gray-700">Faible</span>
+                    <span className="text-[10px] text-gray-700">Modérée</span>
+                    <span className="text-[10px] text-gray-700">Sévère</span>
                   </div>
                 </div>
 
@@ -189,7 +196,7 @@ function SymptomModal({ open, onClose, onAdded }) {
                   </svg>
                 </div>
                 <h3 className="text-base font-bold text-gray-800 mb-1">Symptôme enregistré</h3>
-                <p className="text-sm text-gray-500 mb-6">Souhaitez-vous ajouter un autre symptôme ?</p>
+                <p className="text-sm text-gray-700 mb-6">Souhaitez-vous ajouter un autre symptôme ?</p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setForm({ type: TYPES[0], intensite: 5 }); setJustAdded(false); }}
@@ -257,7 +264,7 @@ function AnalysisBubble({ contenu }) {
           {sections.map((s, i) => {
             if (s.type === "title") return null;
             if (s.type === "disclaimer") return (
-              <p key={i} className="text-[10px] text-gray-400 italic pt-3 border-t border-gray-100 leading-relaxed">{s.text}</p>
+              <p key={i} className="text-[10px] text-gray-700 italic pt-3 border-t border-gray-100 leading-relaxed">{s.text}</p>
             );
             if (s.type === "meta") return (
               <p key={i} className="text-xs font-semibold text-pink-500 bg-pink-50 rounded-lg px-3 py-1.5">{s.text}</p>
@@ -297,7 +304,7 @@ function BotBubble({ contenu }) {
         <div className="bg-white border border-pink-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
           <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{body}</p>
         </div>
-        {disclaimer && <p className="text-[10px] text-gray-400 italic px-1 leading-snug">{disclaimer}</p>}
+        {disclaimer && <p className="text-[10px] text-gray-700 italic px-1 leading-snug">{disclaimer}</p>}
       </div>
     </div>
   );
@@ -487,8 +494,22 @@ export default function Symptoms() {
       if (data.requiresEscalation) {
         setTimeout(() => navigate("/appointments"), 3500);
       }
-    } catch {
-      setChatError("Erreur lors de l'envoi. Veuillez réessayer.");
+    } catch (err) {
+      if (err.response?.status === 400 && err.response?.data?.message === "Session terminée") {
+        // Session was closed — start a fresh one and retry
+        try {
+          const { data: init } = await api.post("/chat/initialize", { symptoms });
+          setSessionId(init.session._id);
+          setMessages([{ _id: "analysis", contenu: init.analysis, role: "assistant_ia", isAnalysis: true }]);
+          const { data } = await api.post(`/chat/sessions/${init.session._id}/messages`, { contenu: content });
+          setMessages((prev) => [...prev, { ...data.response, metadata: data.metadata }]);
+          if (data.requiresEscalation) setTimeout(() => navigate("/appointments"), 3500);
+        } catch {
+          setChatError("Erreur lors de l'envoi. Veuillez réessayer.");
+        }
+      } else {
+        setChatError("Erreur lors de l'envoi. Veuillez réessayer.");
+      }
     } finally {
       setTyping(false);
     }
@@ -520,7 +541,7 @@ export default function Symptoms() {
             <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`} alt="" className="w-7 h-7 object-contain drop-shadow" />
             <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-800 leading-none">CalmCare</h1>
-              <p className="text-xs text-gray-400 mt-0.5">Déclarez vos symptômes · Analyse IA · Conversation</p>
+              <p className="text-xs text-gray-700 mt-0.5">Déclarez vos symptômes · Analyse IA · Conversation</p>
             </div>
             <button
               onClick={newChat}
@@ -567,7 +588,7 @@ export default function Symptoms() {
                 </div>
                 <div className="p-3">
                   {symptoms.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-5">Aucun symptôme déclaré</p>
+                    <p className="text-xs text-gray-700 text-center py-5">Aucun symptôme déclaré</p>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {symptoms.map((s) => {
@@ -602,7 +623,7 @@ export default function Symptoms() {
                 </div>
                 <div className="p-3">
                   {pastSessions.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-4">Aucune conversation</p>
+                    <p className="text-xs text-gray-700 text-center py-4">Aucune conversation</p>
                   ) : (
                     <div className="space-y-1.5 max-h-52 overflow-y-auto">
                       {pastSessions.slice(0, 8).map((s) => (
@@ -616,7 +637,7 @@ export default function Symptoms() {
                             <p className="text-xs font-medium text-gray-700 truncate">
                               {s.type === "analyseSymptome" ? "Analyse de symptômes" : "Discussion générale"}
                             </p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">
+                            <p className="text-[10px] text-gray-700 mt-0.5">
                               {new Date(s.dateDebut).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </p>
                           </div>
@@ -669,7 +690,7 @@ export default function Symptoms() {
                 {chatLoading ? "Analyse en cours…" : "Démarrer l'Analyse IA"}
               </button>
               {symptoms.length > 0 && (
-                <p className="text-[11px] text-gray-400 text-center -mt-2">
+                <p className="text-[11px] text-gray-700 text-center -mt-2">
                   {symptoms.length} symptôme{symptoms.length > 1 ? "s" : ""} seront analysés
                 </p>
               )}
@@ -690,7 +711,7 @@ export default function Symptoms() {
                     <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`} alt="" className="w-11 h-11 object-contain" />
                   </div>
                   <h2 className="text-xl font-bold text-gray-800 mb-2 font-display">Votre espace de suivi</h2>
-                  <p className="text-sm text-gray-500 max-w-xs leading-relaxed mb-8">
+                  <p className="text-sm text-gray-700 max-w-xs leading-relaxed mb-8">
                     {symptoms.length === 0
                       ? "Commencez par déclarer un symptôme, puis démarrez une analyse IA personnalisée."
                       : `Vous avez déclaré ${symptoms.length} symptôme${symptoms.length > 1 ? "s" : ""}. Cliquez sur "Démarrer l'Analyse IA" pour obtenir un bilan personnalisé.`
@@ -729,7 +750,7 @@ export default function Symptoms() {
                   <div className="px-5 py-4 border-b border-pink-50 flex items-center gap-3">
                     <button
                       onClick={() => { setChatMode(false); setMessages([]); setSessionId(null); }}
-                      className="w-8 h-8 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-lg font-bold transition flex-shrink-0"
+                      className="w-8 h-8 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 text-lg font-bold transition flex-shrink-0"
                     >‹</button>
                     <div className="w-9 h-9 rounded-full bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
                       <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`} alt="" className="w-5 h-5 object-contain" />
@@ -738,7 +759,7 @@ export default function Symptoms() {
                       <p className="text-sm font-semibold text-gray-800">Assistante Médicale IA</p>
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                        <p className="text-[11px] text-gray-400">Spécialisée en oncologie</p>
+                        <p className="text-[11px] text-gray-700">Spécialisée en oncologie</p>
                       </div>
                     </div>
                     {symptoms.length > 0 && (

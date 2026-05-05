@@ -1,3 +1,5 @@
+// Routes des rendez-vous médicaux — CRUD + gestion des rappels personnalisés
+// Toutes les routes sont réservées aux patientes
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth.middleware");
@@ -6,17 +8,17 @@ const appointmentCtrl = require("../controllers/appointment.controller");
 
 const isPatient = [auth, authorize("patiente")];
 
-// Named routes before /:id
-router.post("/", isPatient, appointmentCtrl.createAppointment);
-router.get("/", isPatient, appointmentCtrl.getMyAppointments);
+// Routes nommées placées avant /:id pour éviter les conflits de routage
+router.post("/", isPatient, appointmentCtrl.createAppointment);  // Créer un rendez-vous
+router.get("/",  isPatient, appointmentCtrl.getMyAppointments);  // Lister ses rendez-vous (triés par date)
 
-// /:id routes
-router.get("/:id", isPatient, appointmentCtrl.getAppointmentById);
-router.put("/:id", isPatient, appointmentCtrl.updateAppointment);
-router.delete("/:id", isPatient, appointmentCtrl.deleteAppointment);
+// CRUD par identifiant
+router.get("/:id",    isPatient, appointmentCtrl.getAppointmentById); // Détail d'un rendez-vous
+router.put("/:id",    isPatient, appointmentCtrl.updateAppointment);  // Modifier un rendez-vous
+router.delete("/:id", isPatient, appointmentCtrl.deleteAppointment);  // Supprimer un rendez-vous
 
-// Custom reminder sub-routes
-router.post("/:id/reminder", isPatient, appointmentCtrl.setCustomReminder);
-router.delete("/:id/reminder", isPatient, appointmentCtrl.removeCustomReminder);
+// Sous-routes pour les rappels personnalisés (alarmes programmées par la patiente)
+router.post("/:id/reminder",   isPatient, appointmentCtrl.setCustomReminder);    // Définir une date de rappel
+router.delete("/:id/reminder", isPatient, appointmentCtrl.removeCustomReminder); // Supprimer le rappel
 
 module.exports = router;

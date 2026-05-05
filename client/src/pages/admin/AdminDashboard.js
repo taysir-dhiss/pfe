@@ -1,3 +1,4 @@
+// Tableau de bord administrateur — affiche les statistiques globales et les raccourcis vers les sections
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -5,10 +6,11 @@ import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(null);
+  const { user } = useAuth();             // Données de l'administrateur connecté
+  const [stats, setStats] = useState(null); // Statistiques : nombre de patientes, admins, etc.
   const [loading, setLoading] = useState(true);
 
+  // Charge les statistiques globales au montage du composant
   useEffect(() => {
     api.get("/admin/stats").then(({ data }) => setStats(data)).finally(() => setLoading(false));
   }, []);
@@ -23,6 +25,7 @@ export default function AdminDashboard() {
   const shortcuts = [
     { to: "/admin/patients",     icon: "👥", label: "Gérer les patientes",  sub: "Créer, modifier, supprimer",  color: "from-pink-50 to-rose-50",    border: "border-pink-200",   text: "text-pink-600"   },
     { to: "/admin/content",      icon: "📚", label: "Contenu médical",      sub: "Articles & liens Google",     color: "from-blue-50 to-indigo-50",  border: "border-blue-200",   text: "text-blue-600"   },
+    { to: "/admin/rag",          icon: "📖", label: "Base RAG",             sub: "PDFs indexés pour le chatbot", color: "from-teal-50 to-emerald-50", border: "border-teal-200",   text: "text-teal-600"   },
     { to: "/admin/create-admin", icon: "🛡️", label: "Créer un admin",       sub: "Nouveau compte administrateur", color: "from-purple-50 to-pink-50", border: "border-purple-200", text: "text-purple-600" },
   ];
 
@@ -85,7 +88,7 @@ export default function AdminDashboard() {
             </div>
             <div className="text-center">
               <p className={`text-3xl font-bold font-display ${text}`}>{value}</p>
-              <p className="text-sm text-gray-500 font-medium mt-0.5">{label}</p>
+              <p className="text-sm text-gray-700 font-medium mt-0.5">{label}</p>
             </div>
           </Link>
         ))}
@@ -104,7 +107,7 @@ export default function AdminDashboard() {
             </div>
             <div className="min-w-0">
               <p className={`font-semibold text-sm ${text} truncate`}>{label}</p>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{sub}</p>
+              <p className="text-xs text-gray-700 mt-0.5 truncate">{sub}</p>
             </div>
             <svg className={`w-4 h-4 ml-auto flex-shrink-0 ${text} opacity-40 group-hover:opacity-80 group-hover:translate-x-1 transition-all duration-200`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

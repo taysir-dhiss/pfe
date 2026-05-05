@@ -1,23 +1,26 @@
-// ManagePatients — admin patient list with search and delete
+// Page Gestion des patientes (admin) — liste avec recherche et suppression
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
 export default function ManagePatients() {
-  const [patients, setPatients] = useState([]);
+  const [patients, setPatients] = useState([]); // Liste complète des patientes
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState("");     // Terme de recherche pour filtrer la liste
 
+  // Charge la liste de toutes les patientes au montage
   useEffect(() => {
     api.get("/admin/patients").then(({ data }) => setPatients(data)).finally(() => setLoading(false));
   }, []);
 
+  // Supprime une patiente après confirmation et met à jour la liste locale
   const handleDelete = async id => {
     if (!window.confirm("Supprimer cette patiente ?")) return;
     await api.delete(`/admin/patients/${id}`);
     setPatients(prev => prev.filter(p => p._id !== id));
   };
 
+  // Filtre côté client sur le nom et l'email (insensible à la casse)
   const filtered = patients.filter(p =>
     `${p.nom} ${p.email}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -33,7 +36,7 @@ export default function ManagePatients() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <input className="input w-64" placeholder="Rechercher par nom ou email..."
             value={search} onChange={e => setSearch(e.target.value)} />
-          <span className="text-sm text-gray-500">{filtered.length} patiente(s)</span>
+          <span className="text-sm text-gray-700">{filtered.length} patiente(s)</span>
         </div>
 
         {/* Table */}
@@ -41,26 +44,26 @@ export default function ManagePatients() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-brand-100">
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Nom</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Email</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Stade</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Date naissance</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-medium">Nom</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-medium">Email</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-medium">Stade</th>
+                <th className="text-left py-3 px-4 text-gray-700 font-medium">Date naissance</th>
                 <th className="py-3 px-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-10 text-gray-400">Aucune patiente trouvée.</td></tr>
+                <tr><td colSpan={5} className="text-center py-10 text-gray-700">Aucune patiente trouvée.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p._id} className="hover:bg-brand-50 transition">
                   <td className="py-3 px-4 font-medium text-gray-800">{p.nom}</td>
-                  <td className="py-3 px-4 text-gray-500">{p.email}</td>
+                  <td className="py-3 px-4 text-gray-700">{p.email}</td>
                   <td className="py-3 px-4">
                     {p.stadeCancer
                       ? <span className="badge bg-brand-100 text-brand-700">{p.stadeCancer}</span>
-                      : <span className="text-gray-400">—</span>}
+                      : <span className="text-gray-700">—</span>}
                   </td>
-                  <td className="py-3 px-4 text-gray-500">
+                  <td className="py-3 px-4 text-gray-700">
                     {p.dateNaissance ? new Date(p.dateNaissance).toLocaleDateString("fr-FR") : "—"}
                   </td>
                   <td className="py-3 px-4 text-right">

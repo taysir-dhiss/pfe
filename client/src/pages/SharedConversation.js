@@ -1,6 +1,10 @@
+// Page Conversation Partagée — vue publique (sans authentification) d'une session chatbot
+// Accessible via un lien unique : /share/:token
+// Affiche les messages de la conversation en lecture seule
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
+// Sépare le corps du message du disclaimer IA (⚕️) pour un affichage stylistique distinct
 function splitDisclaimer(text) {
   const idx = text.indexOf("⚕️");
   if (idx === -1) return { body: text.trim(), disclaimer: null };
@@ -8,11 +12,12 @@ function splitDisclaimer(text) {
 }
 
 export default function SharedConversation() {
-  const { token } = useParams();
-  const [data, setData]     = useState(null);
+  const { token } = useParams(); // Token unique extrait de l'URL (/share/:token)
+  const [data, setData]     = useState(null);    // Données de la session + messages
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Charge la conversation publique via le token sans nécessiter d'authentification
   useEffect(() => {
     fetch(`/api/chat/share/${token}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
@@ -62,7 +67,7 @@ export default function SharedConversation() {
 
       {/* Messages */}
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
-        <p className="text-center text-[11px] text-gray-400 mb-4">
+        <p className="text-center text-[11px] text-gray-700 mb-4">
           {new Date(data.session.dateDebut).toLocaleDateString("fr-FR", {
             weekday: "long", day: "numeric", month: "long", year: "numeric",
           })}
@@ -90,7 +95,7 @@ export default function SharedConversation() {
                   <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{body}</p>
                 </div>
                 {disclaimer && (
-                  <p className="text-[10px] text-gray-400 italic px-1 leading-snug">{disclaimer}</p>
+                  <p className="text-[10px] text-gray-700 italic px-1 leading-snug">{disclaimer}</p>
                 )}
               </div>
             </div>
@@ -99,7 +104,7 @@ export default function SharedConversation() {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-6 text-[11px] text-gray-400">
+      <div className="text-center py-6 text-[11px] text-gray-700">
         Partagé via CalmCare · Application de suivi oncologique
       </div>
     </div>

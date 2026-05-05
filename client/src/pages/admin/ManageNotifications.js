@@ -1,15 +1,17 @@
-// ManageNotifications — admin sends notifications to specific patients
+// Page Gestion des notifications (admin) — l'admin peut envoyer des notifications manuelles aux patientes
+// Les notifications sont stockées en mémoire RAM et apparaissent dans le centre de notifications des patientes
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
 export default function ManageNotifications() {
-  const [patients, setPatients] = useState([]);
-  const [notifs, setNotifs] = useState([]);
+  const [patients, setPatients] = useState([]);             // Liste des patientes pour le sélecteur
+  const [notifs, setNotifs] = useState([]);                 // Historique des notifications envoyées
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ patientId: "", message: "" });
-  const [msg, setMsg] = useState({ text: "", type: "" });
+  const [form, setForm] = useState({ patientId: "", message: "" }); // Formulaire d'envoi
+  const [msg, setMsg] = useState({ text: "", type: "" });   // Message de retour (succès / erreur)
 
+  // Charge la liste des patientes et l'historique des notifications en parallèle
   const load = async () => {
     const [pRes, nRes] = await Promise.all([api.get("/admin/patients"), api.get("/admin/notifications")]);
     setPatients(pRes.data);
@@ -75,10 +77,10 @@ export default function ManageNotifications() {
 
         {/* Notifications list */}
         <div className="lg:col-span-2 space-y-3">
-          <p className="text-sm text-gray-500 font-medium">{notifs.length} notification(s) envoyée(s)</p>
+          <p className="text-sm text-gray-700 font-medium">{notifs.length} notification(s) envoyée(s)</p>
 
           {notifs.length === 0 ? (
-            <div className="card text-center text-gray-400 py-12">
+            <div className="card text-center text-gray-700 py-12">
               <p className="text-4xl mb-3">📭</p>
               <p>Aucune notification envoyée.</p>
             </div>
@@ -87,13 +89,13 @@ export default function ManageNotifications() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-semibold text-gray-800 text-sm">{n.patientId?.nom || "—"}</span>
-                  <span className="text-gray-400 text-xs">{n.patientId?.email}</span>
-                  <span className={`badge text-xs ${n.statut === "lu" ? "bg-gray-100 text-gray-500" : "bg-brand-100 text-brand-600"}`}>
+                  <span className="text-gray-700 text-xs">{n.patientId?.email}</span>
+                  <span className={`badge text-xs ${n.statut === "lu" ? "bg-gray-100 text-gray-700" : "bg-brand-100 text-brand-600"}`}>
                     {n.statut === "lu" ? "Lu" : "Non lu"}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">{n.message}</p>
-                <p className="text-xs text-gray-400 mt-1">{new Date(n.dateEnvoi).toLocaleString("fr-FR")}</p>
+                <p className="text-xs text-gray-700 mt-1">{new Date(n.dateEnvoi).toLocaleString("fr-FR")}</p>
               </div>
               <button onClick={() => handleDelete(n._id)} className="text-red-400 hover:text-red-600 text-xl flex-shrink-0">🗑️</button>
             </div>

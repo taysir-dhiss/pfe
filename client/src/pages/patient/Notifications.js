@@ -1,14 +1,17 @@
-// Notifications page
-// Tab 1 — active alerts (in-memory, click to dismiss)
-// Tab 2 — custom alarms (DB-persisted, managed via CRUD)
+// Page Notifications — deux onglets :
+// Onglet 1 "Alertes" : notifications en mémoire RAM (rappels de RDV et alarmes déclenchées), rejetables au clic
+// Onglet 2 "Mes alarmes" : rappels personnalisés persistants en base de données (CRUD complet)
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
-import { useNotifications } from "../../context/NotificationContext";
+import { useNotifications } from "../../context/NotificationContext"; // Contexte qui gère le polling des notifications
 
+// Noms des jours pour l'affichage et la sélection des jours de rappel hebdomadaire
 const DAY_NAMES = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+// Valeurs par défaut du formulaire de création d'alarme
 const blankForm = { label: "", repeatType: "daily", days: [], time: "08:00", date: "" };
 
+// Convertit une date UTC en format datetime-local pour l'input HTML
 const toLocal = d => {
   if (!d) return "";
   const dt = new Date(d);
@@ -16,6 +19,7 @@ const toLocal = d => {
   return dt.toISOString().slice(0, 16);
 };
 
+// Formate une date ISO en chaîne lisible en français
 const fmtDate = iso =>
   new Date(iso).toLocaleString("fr-FR", {
     weekday: "short", day: "numeric", month: "short",
@@ -23,15 +27,17 @@ const fmtDate = iso =>
   });
 
 export default function Notifications() {
-  const [tab, setTab] = useState("alerts");
+  const [tab, setTab] = useState("alerts"); // Onglet actif : "alerts" ou "alarms"
+  // notifications : liste des alertes en mémoire ; dismiss/dismissAll : fonctions de suppression
   const { notifications, unread, dismiss, dismissAll } = useNotifications();
 
-  const [alarms, setAlarms]     = useState([]);
-  const [loadingA, setLoadingA] = useState(true);
-  const [form, setForm]         = useState(blankForm);
-  const [editing, setEditing]   = useState(null);
-  const [msg, setMsg]           = useState({ text: "", type: "" });
+  const [alarms, setAlarms]     = useState([]);          // Liste des alarmes personnalisées (DB)
+  const [loadingA, setLoadingA] = useState(true);        // Chargement initial des alarmes
+  const [form, setForm]         = useState(blankForm);   // État du formulaire d'alarme
+  const [editing, setEditing]   = useState(null);        // ID de l'alarme en cours de modification
+  const [msg, setMsg]           = useState({ text: "", type: "" }); // Message de retour
 
+  // Charge la liste des alarmes personnalisées depuis l'API
   const loadAlarms = () =>
     api.get("/reminders")
       .then(({ data }) => setAlarms(data))
@@ -112,14 +118,14 @@ export default function Notifications() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-gray-800 leading-none">Notifications</h1>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-700 mt-0.5">
               {unread > 0 ? `${unread} alerte${unread > 1 ? "s" : ""} non lue${unread > 1 ? "s" : ""}` : "Tout est à jour"}
             </p>
           </div>
         </div>
         {tab === "alerts" && notifications.length > 0 && (
           <button onClick={dismissAll}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 font-medium transition-colors px-3 py-1.5 rounded-xl hover:bg-red-50">
+            className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-red-500 font-medium transition-colors px-3 py-1.5 rounded-xl hover:bg-red-50">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -138,7 +144,7 @@ export default function Notifications() {
             className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
               tab === t.id
                 ? "bg-white text-brand-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                : "text-gray-700 hover:text-gray-700"
             }`}>
             <span>{t.icon}</span>
             {t.label}
@@ -162,11 +168,11 @@ export default function Notifications() {
                 </svg>
               </div>
               <p className="font-semibold text-gray-600 mb-1">Aucune alerte active</p>
-              <p className="text-sm text-gray-400">Vous recevrez ici les rappels de rendez-vous et d'alarmes.</p>
+              <p className="text-sm text-gray-700">Vous recevrez ici les rappels de rendez-vous et d'alarmes.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs text-gray-400 mb-1 pl-1">
+              <p className="text-xs text-gray-700 mb-1 pl-1">
                 Cliquer sur une alerte la marque comme lue et la supprime.
               </p>
               {notifications.map((n, i) => (
@@ -193,13 +199,13 @@ export default function Notifications() {
                         }`}>
                           {n.type === "alarm" ? "Alarme" : "Rendez-vous"}
                         </span>
-                        <span className="text-xs text-gray-400">{fmtDate(n.triggerTime)}</span>
+                        <span className="text-xs text-gray-700">{fmtDate(n.triggerTime)}</span>
                       </div>
                     </div>
                     {/* Dismiss hint */}
                     <div className="flex-shrink-0 flex flex-col items-end gap-1">
                       <span className="w-2 h-2 rounded-full bg-red-400 group-hover:bg-gray-300 transition-colors" />
-                      <span className="text-[10px] text-gray-300 group-hover:text-red-400 transition-colors font-medium">Marquer lu</span>
+                      <span className="text-[10px] text-gray-600 group-hover:text-red-400 transition-colors font-medium">Marquer lu</span>
                     </div>
                   </div>
                 </button>
@@ -229,13 +235,13 @@ export default function Notifications() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Intitulé *</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Intitulé *</label>
                 <input className="input" placeholder="Ex. Prendre médicament" value={form.label}
                   onChange={e => setForm({ ...form, label: e.target.value })} required />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Répétition *</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Répétition *</label>
                 <select className="input" value={form.repeatType}
                   onChange={e => setForm({ ...form, repeatType: e.target.value, days: [] })}>
                   <option value="once">Une fois (date précise)</option>
@@ -246,7 +252,7 @@ export default function Notifications() {
 
               {form.repeatType === "once" && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Date et heure *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Date et heure *</label>
                   <input type="datetime-local" className="input" value={form.date}
                     onChange={e => setForm({ ...form, date: e.target.value })} required />
                 </div>
@@ -254,7 +260,7 @@ export default function Notifications() {
 
               {form.repeatType !== "once" && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Heure *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Heure *</label>
                   <input type="time" className="input" value={form.time}
                     onChange={e => setForm({ ...form, time: e.target.value })} required />
                 </div>
@@ -262,14 +268,14 @@ export default function Notifications() {
 
               {form.repeatType === "weekly" && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Jours *</label>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Jours *</label>
                   <div className="flex flex-wrap gap-2">
                     {DAY_NAMES.map((name, i) => (
                       <button type="button" key={i} onClick={() => toggleDay(i)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
                           form.days.includes(i)
                             ? "bg-brand-500 text-white border-brand-500 shadow-sm"
-                            : "bg-white text-gray-500 border-gray-200 hover:border-brand-300 hover:text-brand-600"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-brand-300 hover:text-brand-600"
                         }`}>
                         {name}
                       </button>
@@ -299,7 +305,7 @@ export default function Notifications() {
                   <span className="text-3xl">⏰</span>
                 </div>
                 <p className="font-semibold text-gray-600 mb-1">Aucune alarme configurée</p>
-                <p className="text-sm text-gray-400">Créez votre première alarme médicale à gauche.</p>
+                <p className="text-sm text-gray-700">Créez votre première alarme médicale à gauche.</p>
               </div>
             ) : alarms.map(r => (
               <div key={r._id}
@@ -315,9 +321,9 @@ export default function Notifications() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-800 truncate">{r.label}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{repeatLabel(r)}</p>
+                      <p className="text-sm text-gray-700 mt-0.5">{repeatLabel(r)}</p>
                       <span className={`inline-flex items-center gap-1 mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        r.active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
+                        r.active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-700"
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${r.active ? "bg-green-500" : "bg-gray-300"}`} />
                         {r.active ? "Actif" : "Désactivé"}
@@ -336,13 +342,13 @@ export default function Notifications() {
                       {r.active ? "⏸ OFF" : "▶ ON"}
                     </button>
                     <button onClick={() => startEdit(r)}
-                      className="p-2 rounded-xl text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition border border-transparent hover:border-brand-100">
+                      className="p-2 rounded-xl text-gray-700 hover:text-brand-600 hover:bg-brand-50 transition border border-transparent hover:border-brand-100">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
                     <button onClick={() => delAlarm(r._id)}
-                      className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition border border-transparent hover:border-red-100">
+                      className="p-2 rounded-xl text-gray-700 hover:text-red-500 hover:bg-red-50 transition border border-transparent hover:border-red-100">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>

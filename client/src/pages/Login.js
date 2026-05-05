@@ -1,15 +1,18 @@
+// Page de connexion — formulaire d'authentification commun pour admins et patientes
+// Redirige vers /admin ou /dashboard selon le rôle retourné par l'API
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login } = useAuth();   // Fonction de connexion du contexte (stocke user + token)
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", motDePasse: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ email: "", motDePasse: "" }); // État du formulaire
+  const [error, setError] = useState("");    // Message d'erreur à afficher
+  const [loading, setLoading] = useState(false); // Indicateur de chargement pendant la requête
 
+  // Met à jour dynamiquement le champ concerné dans l'état du formulaire
   const onChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async e => {
@@ -19,7 +22,9 @@ export default function Login() {
     try {
       setLoading(true);
       const { data } = await api.post("/auth/login", form);
+      // Stocke les informations utilisateur et le token JWT dans le contexte et localStorage
       login({ id: data.id, nom: data.nom, role: data.role }, data.token);
+      // Redirige vers le tableau de bord approprié selon le rôle
       navigate(data.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Identifiants incorrects.");
@@ -107,7 +112,7 @@ export default function Login() {
 
           <div className="glass p-8">
             <h2 className="font-display text-2xl font-bold text-gray-800 mb-1">Bon retour 👋</h2>
-            <p className="text-gray-400 text-sm mb-7">Connectez-vous à votre espace santé</p>
+            <p className="text-gray-700 text-sm mb-7">Connectez-vous à votre espace santé</p>
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-5 text-sm animate-fade-in">
@@ -117,12 +122,12 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Adresse e-mail</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Adresse e-mail</label>
                 <input name="email" type="email" className="input" placeholder="exemple@email.com"
                   value={form.email} onChange={onChange} required />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Mot de passe</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Mot de passe</label>
                 <input name="motDePasse" type="password" className="input" placeholder="••••••••"
                   value={form.motDePasse} onChange={onChange} required />
               </div>
@@ -139,7 +144,7 @@ export default function Login() {
               </button>
             </form>
 
-            <p className="text-center text-sm text-gray-400 mt-6">
+            <p className="text-center text-sm text-gray-700 mt-6">
               Pas de compte ?{" "}
               <Link to="/register" className="text-brand-600 font-semibold hover:text-brand-700 transition-colors">
                 S'inscrire

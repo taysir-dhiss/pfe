@@ -1,10 +1,13 @@
-// Reminders — patient manages custom alarms (medication, etc.)
+// Page Rappels — la patiente gère ses alarmes personnalisées (médicaments, soins, etc.)
+// Supporte trois types : ponctuel ("once"), quotidien ("daily"), hebdomadaire ("weekly")
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
+// Noms abrégés des jours pour la sélection des jours de rappel hebdomadaire
 const DAY_NAMES = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
+// Convertit une date UTC en format datetime-local pour l'input HTML
 const toDatetimeLocal = d => {
   if (!d) return "";
   const dt = new Date(d);
@@ -12,20 +15,23 @@ const toDatetimeLocal = d => {
   return dt.toISOString().slice(0, 16);
 };
 
+// Valeurs initiales du formulaire de création d'alarme
 const blankForm = { label: "", repeatType: "daily", days: [], time: "08:00", date: "" };
 
 export default function Reminders() {
-  const [reminders, setReminders] = useState([]);
+  const [reminders, setReminders] = useState([]);          // Liste des rappels de la patiente
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(blankForm);
-  const [msg, setMsg] = useState({ text: "", type: "" });
-  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(blankForm);             // État du formulaire de création/modification
+  const [msg, setMsg] = useState({ text: "", type: "" });  // Message de retour (succès / erreur)
+  const [editing, setEditing] = useState(null);            // ID du rappel en cours de modification
 
+  // Charge les rappels depuis l'API
   const load = () =>
     api.get("/reminders").then(({ data }) => setReminders(data)).finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 
+  // Ajoute ou retire un jour de la liste des jours sélectionnés (rappel hebdomadaire)
   const toggleDay = d => {
     setForm(prev => ({
       ...prev,
@@ -176,7 +182,7 @@ export default function Reminders() {
         {/* ── List ─────────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-3">
           {reminders.length === 0 ? (
-            <div className="card text-center text-gray-500 py-12">
+            <div className="card text-center text-gray-700 py-12">
               <p className="text-4xl mb-3">⏰</p>
               <p>Aucun rappel configuré.</p>
             </div>
@@ -185,8 +191,8 @@ export default function Reminders() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-gray-800">{r.label}</p>
-                  <p className="text-sm text-gray-500 mt-0.5">{repeatLabel(r)}</p>
-                  <span className={`inline-block mt-2 badge text-xs ${r.active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}>
+                  <p className="text-sm text-gray-700 mt-0.5">{repeatLabel(r)}</p>
+                  <span className={`inline-block mt-2 badge text-xs ${r.active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-700"}`}>
                     {r.active ? "Actif" : "Désactivé"}
                   </span>
                 </div>

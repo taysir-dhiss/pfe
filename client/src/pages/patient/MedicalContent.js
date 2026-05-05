@@ -1,13 +1,15 @@
-// MedicalContent — patient view of medical articles and videos as cards
+// Page Contenu médical (côté patiente) — affiche les articles et vidéos publiés par l'admin sous forme de cartes
+// Permet de filtrer par type : tout / articles / vidéos
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
 export default function MedicalContent() {
-  const [content, setContent] = useState([]);
+  const [content, setContent] = useState([]);       // Liste des contenus médicaux
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("all");      // Filtre actif : "all", "article" ou "video"
 
+  // Recharge le contenu à chaque changement de filtre (le filtre est passé en query param à l'API)
   useEffect(() => {
     const url = filter === "all" ? "/content" : `/content?type=${filter}`;
     setLoading(true);
@@ -39,7 +41,7 @@ export default function MedicalContent() {
       </div>
 
       {loading ? <Spinner /> : filtered.length === 0 ? (
-        <div className="card text-center text-gray-500 py-16">
+        <div className="card text-center text-gray-700 py-16">
           <p className="text-5xl mb-3">📭</p>
           <p>Aucun contenu disponible pour le moment.</p>
         </div>
@@ -52,7 +54,7 @@ export default function MedicalContent() {
                 <span className={`badge text-xs font-semibold ${c.type === "video" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
                   {c.type === "video" ? "🎬 Vidéo" : "📄 Article"}
                 </span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-700">
                   {new Date(c.createdAt).toLocaleDateString("fr-FR")}
                 </span>
               </div>
@@ -62,7 +64,7 @@ export default function MedicalContent() {
 
               {/* Description */}
               {c.contenu && (
-                <p className="text-sm text-gray-500 leading-relaxed line-clamp-3 flex-1 mb-4">
+                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 flex-1 mb-4">
                   {c.contenu}
                 </p>
               )}
@@ -76,7 +78,7 @@ export default function MedicalContent() {
                 </a>
               ) : (
                 <div className="mt-auto">
-                  <span className="inline-block w-full text-center text-sm text-gray-400 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className="inline-block w-full text-center text-sm text-gray-700 py-2 bg-gray-50 rounded-lg border border-gray-200">
                     Aucun lien disponible
                   </span>
                 </div>

@@ -1,17 +1,21 @@
-// ManageContent — admin CRUD for medical articles and videos with link support
+// Page Gestion du contenu médical (admin) — CRUD pour articles et vidéos
+// Supporte les articles avec texte (contenu) et les vidéos avec un lien URL
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
 export default function ManageContent() {
-  const [content, setContent] = useState([]);
+  const [content, setContent] = useState([]);  // Liste de tous les contenus médicaux
   const [loading, setLoading] = useState(true);
+  // État du formulaire de création (titre, texte optionnel, type et URL optionnelle)
   const [form, setForm] = useState({ titre: "", contenu: "", type: "article", url: "" });
-  const [msg, setMsg] = useState({ text: "", type: "" });
+  const [msg, setMsg] = useState({ text: "", type: "" }); // Message de retour (succès / erreur)
 
+  // Charge la liste des contenus depuis l'API
   const load = () => api.get("/content").then(({ data }) => setContent(data)).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
+  // Publie un nouveau contenu médical après validation
   const handleSubmit = async e => {
     e.preventDefault();
     setMsg({ text: "", type: "" });
@@ -20,13 +24,14 @@ export default function ManageContent() {
     try {
       await api.post("/content", form);
       setMsg({ text: "Contenu publié avec succès.", type: "success" });
-      setForm({ titre: "", contenu: "", type: "article", url: "" });
-      load();
+      setForm({ titre: "", contenu: "", type: "article", url: "" }); // Réinitialise le formulaire
+      load(); // Recharge la liste pour afficher le nouveau contenu
     } catch (err) {
       setMsg({ text: err.response?.data?.message || "Erreur.", type: "error" });
     }
   };
 
+  // Supprime un contenu après confirmation et le retire de la liste locale
   const handleDelete = async id => {
     if (!window.confirm("Supprimer ce contenu ?")) return;
     await api.delete(`/content/${id}`);
@@ -92,7 +97,7 @@ export default function ManageContent() {
         {/* Content list */}
         <div className="lg:col-span-2 space-y-3">
           {content.length === 0 ? (
-            <div className="card text-center text-gray-500 py-12">
+            <div className="card text-center text-gray-700 py-12">
               <p className="text-4xl mb-3">📭</p>
               <p>Aucun contenu publié.</p>
             </div>
@@ -105,10 +110,10 @@ export default function ManageContent() {
                     <span className={`badge text-xs ${c.type === "video" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
                       {c.type === "video" ? "Vidéo" : "Article"}
                     </span>
-                    <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString("fr-FR")}</span>
+                    <span className="text-xs text-gray-700">{new Date(c.createdAt).toLocaleDateString("fr-FR")}</span>
                   </div>
                   <p className="font-semibold text-gray-800 truncate">{c.titre}</p>
-                  {c.contenu && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{c.contenu}</p>}
+                  {c.contenu && <p className="text-sm text-gray-700 mt-0.5 line-clamp-2">{c.contenu}</p>}
                   {c.url && (
                     <a href={c.url} target="_blank" rel="noreferrer"
                       className="text-xs text-brand-600 hover:underline mt-1 block truncate">
@@ -118,7 +123,7 @@ export default function ManageContent() {
                 </div>
               </div>
               <button onClick={() => handleDelete(c._id)}
-                className="text-gray-300 hover:text-red-500 transition text-xl flex-shrink-0">🗑️</button>
+                className="text-gray-600 hover:text-red-500 transition text-xl flex-shrink-0">🗑️</button>
             </div>
           ))}
         </div>

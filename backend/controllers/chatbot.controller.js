@@ -2,7 +2,8 @@
 const crypto = require("crypto");
 const OpenAI = require("openai");
 const AIAnalysisService = require("../services/AIAnalysisService");
-const SemanticService = require("../services/SemanticService");
+const SemanticService   = require("../services/SemanticService");
+const RAGService        = require("../services/RAGService");
 const aiLogger = require("../utils/aiLogger");
 const ChatSession = require("../models/ChatSession");
 const ChatMessage = require("../models/ChatMessage");
@@ -11,7 +12,7 @@ const Symptom = require("../models/Symptom");
 const Patient = require("../models/Patient");
 
 const DISCLAIMER =
-  "⚕️ *Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.*";
+  "Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.";
 
 const AI_MODEL = "gpt-4o-mini";
 
@@ -541,9 +542,12 @@ exports.createSession = async (req, res) => {
 };
 
 // GET /api/chat/sessions
+// ?all=true → returns all sessions (history); default → only open sessions
 exports.getMySessions = async (req, res) => {
   try {
-    const sessions = await ChatSession.find({ patientId: req.user.id }).sort({ dateDebut: -1 });
+    const filter = { patientId: req.user.id };
+    if (!req.query.all) filter.datefin = { $in: [null, undefined] };
+    const sessions = await ChatSession.find(filter).sort({ dateDebut: -1 }).limit(20);
     res.json(sessions);
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
@@ -609,6 +613,19 @@ exports.sendMessage = async (req, res) => {
     }
     console.log("Semantic lookup:", { tier: semanticCtx.tier, score: semanticCtx.score?.toFixed(4) });
 
+    // ── Step 0.5: RAG Retrieval — medical knowledge base ─────────────────────
+    let ragChunks = [];
+    try {
+      ragChunks = await RAGService.retrieveRelevantChunks(contenu, 4);
+      aiLogger.log("rag_retrieval", {
+        count:    ragChunks.length,
+        topScore: ragChunks[0]?.score?.toFixed(4) ?? "n/a",
+        sources:  ragChunks.map((c) => c.sourceFile),
+      }, { sessionId });
+    } catch (err) {
+      aiLogger.logError("rag_retrieval_failed", err, { sessionId });
+    }
+
     // ── Step 1: AI Symptom Classification ────────────────────────────────────
     let classification;
     try {
@@ -622,48 +639,37 @@ exports.sendMessage = async (req, res) => {
     _debug.classification = classification;
     console.log("Classification:", classification);
 
-    // ── Step 2: Medical Reasoning ─────────────────────────────────────────────
+    // ── Step 2: Safety assessment ─────────────────────────────────────────────
     const needsConsultation =
       semanticCtx.tier === "medium" ||
       ["high", "critical"].includes(classification.severity) ||
       classification.confidence < 0.5;
 
-    let analysis;
+    const safety = AIAnalysisService.applySafetyFilter(classification);
+    aiLogger.log("safety_filter", safety, { sessionId });
+
+    // ── Step 3: Conversational response with full memory ──────────────────────
+    let finalResponse;
     try {
-      analysis = await AIAnalysisService.generateMedicalAnalysis(classification, {
+      finalResponse = await AIAnalysisService.generateConversationalResponse(classification, {
         userMessage:      contenu,
         history,
-        sessionType:      session.type,
+        ragChunks,
         semanticContext:  semanticCtx.context,
         semanticTier:     semanticCtx.tier,
         needsConsultation,
         detectedCategory,
+        safety,
       });
-      aiLogger.log("medical_reasoning", {
-        analysisPreview:      analysis.analysis?.slice(0, 150),
-        recommendationCount:  analysis.recommendations?.length,
+      aiLogger.log("conversational_response", {
+        responseLength: finalResponse.length,
+        preview:        finalResponse.slice(0, 150),
       }, { sessionId });
     } catch (err) {
-      aiLogger.logError("medical_reasoning_failed", err, { sessionId });
-      analysis = { analysis: null, recommendations: [] };
+      aiLogger.logError("conversational_response_failed", err, { sessionId });
+      finalResponse = localFallbackResponse(contenu);
     }
-    _debug.aiResult = analysis;
-    console.log("AI result:", analysis);
-
-    // ── Step 3: Safety Filter ─────────────────────────────────────────────────
-    const safety = AIAnalysisService.applySafetyFilter(classification);
-    aiLogger.log("safety_filter", safety, { sessionId });
-
-    // ── Step 4: Build Final Response ──────────────────────────────────────────
-    const finalResponse = AIAnalysisService.buildFinalResponse({
-      contenu,
-      classification,
-      analysis,
-      safety,
-      fallbackText: localFallbackResponse(contenu),
-    });
     _debug.finalResponse = finalResponse;
-    console.log("Final response:", finalResponse);
 
     aiLogger.log("final_response", {
       requiresEscalation: safety.requiresEscalation,
@@ -859,6 +865,19 @@ Format exact : { "analysis": "...", "suggestions": ["q1", "q2", "q3"] }`
 
     // Return both keys: ChatbotAI.js reads `welcome`, Symptoms.js reads `analysis`
     res.json({ session, welcome: analysis, analysis, suggestions });
+  } catch (err) {
+    console.error("[initialize] Error:", err.message, err.stack?.split("\n")[1]);
+    res.status(500).json({ message: err.message, error: err.message });
+  }
+};
+
+// ─── DELETE /api/chat/sessions/:id ───────────────────────────────────────────
+exports.deleteSession = async (req, res) => {
+  try {
+    const session = await ChatSession.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
+    if (!session) return res.status(404).json({ message: "Session introuvable" });
+    await ChatMessage.deleteMany({ sessionId: req.params.id });
+    res.json({ message: "Session supprimée." });
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }

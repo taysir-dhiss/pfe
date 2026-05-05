@@ -35,6 +35,7 @@ module.exports = {
         "modal-in":   "modalIn 0.28s cubic-bezier(0.34,1.56,0.64,1) both",
         "modal-out":  "modalOut 0.2s ease both",
         "overlay-in": "overlayIn 0.2s ease both",
+        "float":      "float 3.2s ease-in-out infinite",
       },
       keyframes: {
         fadeIn:    { from: { opacity: 0 },                       to: { opacity: 1 } },
@@ -72,6 +73,10 @@ module.exports = {
           "0%":   { transform: "scale(0)" },
           "60%":  { transform: "scale(1.3)" },
           "100%": { transform: "scale(1)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%":      { transform: "translateY(-10px)" },
         },
       },
       backdropBlur: { xs: "2px" },

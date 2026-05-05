@@ -37,7 +37,7 @@ export default function Navbar() {
 
   const patientLinks = [
     { to: "/dashboard",       label: "Accueil" },
-    { to: "/symptoms",        label: "CalmCare" },
+    { to: "/chatbot",          label: "CalmCare" },
     { to: "/appointments",    label: "Rendez-vous" },
     { to: "/content",         label: "Contenu médical" },
     { to: "/recommendations", label: "Recommandations" },
@@ -47,8 +47,8 @@ export default function Navbar() {
     { to: "/admin",              label: "Dashboard" },
     { to: "/admin/patients",     label: "Patients" },
     { to: "/admin/content",      label: "Contenu" },
+    { to: "/admin/rag",          label: "Base RAG" },
     { to: "/admin/create-admin", label: "Créer Admin" },
-    { to: "/admin/community",    label: "Communauté" },
   ];
   const links = isAdmin ? adminLinks : patientLinks;
 
@@ -88,7 +88,7 @@ export default function Navbar() {
                   className={`relative p-2 ml-1 rounded-xl transition-all duration-200 ${
                     isActive("/notifications")
                       ? "bg-brand-100 text-brand-600"
-                      : "text-gray-500 hover:text-brand-600 hover:bg-brand-50"
+                      : "text-gray-700 hover:text-brand-600 hover:bg-brand-50"
                   } ${ringing ? "animate-bell-ring" : ""}`}>
                   <BellIcon />
                   {unread > 0 && (

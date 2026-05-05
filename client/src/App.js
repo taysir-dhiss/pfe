@@ -11,7 +11,6 @@ import Register from "./pages/Register";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
-import Symptoms from "./pages/patient/Symptoms";
 import Appointments from "./pages/patient/Appointments";
 import Recommendations from "./pages/patient/Recommendations";
 import Notifications from "./pages/patient/Notifications";
@@ -24,6 +23,7 @@ import SharedConversation from "./pages/SharedConversation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManagePatients from "./pages/admin/ManagePatients";
 import ManageContent from "./pages/admin/ManageContent";
+import ManageRAG from "./pages/admin/ManageRAG";
 import CreateAdmin from "./pages/admin/CreateAdmin";
 
 function AppRoutes() {
@@ -45,7 +45,6 @@ function AppRoutes() {
 
         {/* Patient routes */}
         <Route path="/dashboard"       element={<ProtectedRoute role="patiente"><PatientDashboard /></ProtectedRoute>} />
-        <Route path="/symptoms"        element={<ProtectedRoute role="patiente"><Symptoms /></ProtectedRoute>} />
         <Route path="/appointments"    element={<ProtectedRoute role="patiente"><Appointments /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute role="patiente"><Recommendations /></ProtectedRoute>} />
         <Route path="/notifications"   element={<ProtectedRoute role="patiente"><Notifications /></ProtectedRoute>} />
@@ -58,7 +57,7 @@ function AppRoutes() {
         <Route path="/admin/patients"       element={<ProtectedRoute role="admin"><ManagePatients /></ProtectedRoute>} />
 <Route path="/admin/content"        element={<ProtectedRoute role="admin"><ManageContent /></ProtectedRoute>} />
         <Route path="/admin/create-admin"   element={<ProtectedRoute role="admin"><CreateAdmin /></ProtectedRoute>} />
-        <Route path="/admin/community"      element={<ProtectedRoute role="admin"><CommunityChat /></ProtectedRoute>} />
+        <Route path="/admin/rag"            element={<ProtectedRoute role="admin"><ManageRAG /></ProtectedRoute>} />
 
         {/* Public shared conversation — no auth */}
         <Route path="/share/:token" element={<SharedConversation />} />
