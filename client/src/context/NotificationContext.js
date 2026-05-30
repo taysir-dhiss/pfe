@@ -36,7 +36,7 @@ function requestBrowserPermission() {
 
 function showBrowserNotification(message) {
   if ("Notification" in window && Notification.permission === "granted") {
-    new Notification("CancerCare 🎗️", { body: message, icon: "/favicon.ico" });
+    new Notification("CancerCare", { body: message, icon: "/favicon.ico" });
   }
 }
 

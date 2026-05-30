@@ -1,7 +1,5 @@
-// CRUD symptômes patient + vue admin + déclenchement recommandations IA
 const Symptom = require("../models/Symptom");
 
-// POST /api/symptoms
 exports.createSymptom = async (req, res) => {
   try {
     const { type, intensite, dateDeclaration } = req.body;
@@ -20,7 +18,6 @@ exports.createSymptom = async (req, res) => {
   }
 };
 
-// GET /api/symptoms
 exports.getMySymptoms = async (req, res) => {
   try {
     const symptoms = await Symptom.find({ patientId: req.user.id }).sort({ dateDeclaration: -1 });
@@ -30,7 +27,6 @@ exports.getMySymptoms = async (req, res) => {
   }
 };
 
-// GET /api/symptoms/:id
 exports.getSymptomById = async (req, res) => {
   try {
     const symptom = await Symptom.findOne({ _id: req.params.id, patientId: req.user.id });
@@ -41,7 +37,6 @@ exports.getSymptomById = async (req, res) => {
   }
 };
 
-// PUT /api/symptoms/:id
 exports.updateSymptom = async (req, res) => {
   try {
     const { patientId, ...data } = req.body;
@@ -57,7 +52,6 @@ exports.updateSymptom = async (req, res) => {
   }
 };
 
-// DELETE /api/symptoms/:id  (idempotent — 200 even if already gone)
 exports.deleteSymptom = async (req, res) => {
   try {
     await Symptom.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
@@ -67,7 +61,6 @@ exports.deleteSymptom = async (req, res) => {
   }
 };
 
-// GET /api/admin/symptoms  (admin)
 exports.getAllSymptoms = async (req, res) => {
   try {
     const symptoms = await Symptom.find()

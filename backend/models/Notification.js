@@ -1,4 +1,3 @@
-// Notification model — created by scheduler, deleted when read
 const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema({

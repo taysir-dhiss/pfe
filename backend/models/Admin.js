@@ -1,4 +1,3 @@
-// Admin model - stores admin account data
 const mongoose = require("mongoose");
 
 const adminSchema = new mongoose.Schema(

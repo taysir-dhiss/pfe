@@ -19,7 +19,6 @@ export default function Navbar() {
   const prevUnread                          = useRef(0);
   const isAdmin                             = user?.role === "admin";
 
-  // Ring bell + animate badge when new notifications arrive
   useEffect(() => {
     if (unread > prevUnread.current) {
       setRinging(true);
@@ -29,7 +28,6 @@ export default function Navbar() {
     prevUnread.current = unread;
   }, [unread]);
 
-  // Close mobile menu on navigation
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate("/login"); };
@@ -39,7 +37,7 @@ export default function Navbar() {
     { to: "/dashboard",       label: "Accueil" },
     { to: "/chatbot",          label: "CalmCare" },
     { to: "/appointments",    label: "Rendez-vous" },
-    { to: "/content",         label: "Contenu médical" },
+    { to: "/content",         label: "BibMed" },
     { to: "/recommendations", label: "Recommandations" },
     { to: "/community",       label: "Communauté" },
   ];
@@ -58,7 +56,6 @@ export default function Navbar() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
 
-            {/* Logo */}
             <Link to={isAdmin ? "/admin" : "/dashboard"}
               className="flex items-center gap-2.5 flex-shrink-0 group">
               <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-200 flex-shrink-0">
@@ -69,7 +66,6 @@ export default function Navbar() {
               </span>
             </Link>
 
-            {/* Desktop nav links */}
             <div className="hidden md:flex items-center gap-0.5">
               {links.map(l => (
                 <Link key={l.to} to={l.to}
@@ -82,7 +78,6 @@ export default function Navbar() {
                 </Link>
               ))}
 
-              {/* Bell — patient only, navigates to /notifications */}
               {!isAdmin && (
                 <Link to="/notifications"
                   className={`relative p-2 ml-1 rounded-xl transition-all duration-200 ${
@@ -101,7 +96,6 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {/* Divider */}
               <div className="w-px h-5 bg-gray-200 mx-2" />
 
               <button onClick={handleLogout}
@@ -113,7 +107,6 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Mobile right */}
             <div className="md:hidden flex items-center gap-1">
               {!isAdmin && (
                 <Link to="/notifications"
@@ -138,7 +131,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-white border-b border-gray-100 animate-slide-down shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-1">

@@ -1,17 +1,8 @@
-/**
- * RAG controller — admin PDF ingestion + document management.
- *
- * POST   /api/rag/upload              Upload & index a PDF
- * GET    /api/rag/documents           List indexed documents (aggregated)
- * DELETE /api/rag/documents/:sourceId Remove all chunks for a document
- */
-
 const crypto       = require("crypto");
 const pdfParse     = require("pdf-parse");
 const MedicalChunk = require("../models/MedicalChunk");
 const RAGService   = require("../services/RAGService");
 
-// POST /api/rag/upload
 exports.uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -24,7 +15,6 @@ exports.uploadDocument = async (req, res) => {
     const sourceId   = crypto.randomUUID();
     const sourceFile = req.file.originalname;
 
-    // ── Extract text from PDF buffer ────────────────────────────────────────
     let pdfData;
     try {
       pdfData = await pdfParse(req.file.buffer);
@@ -37,13 +27,11 @@ exports.uploadDocument = async (req, res) => {
       return res.status(422).json({ message: "Le PDF ne contient pas assez de texte exploitable (PDF image ou protégé ?)." });
     }
 
-    // ── Chunk ───────────────────────────────────────────────────────────────
     const chunks = RAGService.chunkText(rawText);
     if (!chunks.length) {
       return res.status(422).json({ message: "Aucun contenu exploitable après découpage." });
     }
 
-    // ── Embed and persist ───────────────────────────────────────────────────
     const chunkCount = await RAGService.storeChunks(chunks, sourceFile, sourceId, req.user.id);
 
     res.status(201).json({
@@ -59,7 +47,6 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
-// GET /api/rag/documents
 exports.listDocuments = async (req, res) => {
   try {
     const docs = await MedicalChunk.aggregate([
@@ -80,7 +67,6 @@ exports.listDocuments = async (req, res) => {
   }
 };
 
-// DELETE /api/rag/documents/:sourceId
 exports.deleteDocument = async (req, res) => {
   try {
     const result = await MedicalChunk.deleteMany({ sourceId: req.params.sourceId });

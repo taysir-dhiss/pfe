@@ -1,10 +1,8 @@
-// Page Chatbot — interface de chat IA avec gestion des sessions (version simplifiée)
-// Utilisée comme version alternative à ChatbotAI.js (interface complète)
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { ChatBubbleIcon } from "../../components/Icons";
 
-// Libellés lisibles pour chaque type de session chatbot
 const SESSION_LABELS = {
   general_support:  "Support général",
   analyseSymptome:  "Analyse de symptômes",
@@ -12,14 +10,14 @@ const SESSION_LABELS = {
 };
 
 export default function Chatbot() {
-  const [sessions, setSessions]   = useState([]);              // Historique des sessions ouvertes
-  const [active, setActive]       = useState(null);            // Session active sélectionnée
-  const [messages, setMessages]   = useState([]);              // Messages de la session active
-  const [input, setInput]         = useState("");              // Contenu du champ de saisie
-  const [loading, setLoading]     = useState(true);            // Chargement initial des sessions
-  const [sending, setSending]     = useState(false);           // Envoi d'un message en cours
-  const [sessionType, setSessionType] = useState("general_support"); // Type de la nouvelle session
-  const bottomRef = useRef(null); // Référence pour le défilement automatique vers le dernier message
+  const [sessions, setSessions]       = useState([]);
+  const [active, setActive]           = useState(null);
+  const [messages, setMessages]       = useState([]);
+  const [input, setInput]             = useState("");
+  const [loading, setLoading]         = useState(true);
+  const [sending, setSending]         = useState(false);
+  const [sessionType, setSessionType] = useState("general_support");
+  const bottomRef = useRef(null);
 
   const loadSessions = () =>
     api.get("/chat/sessions").then(({ data }) => setSessions(data)).finally(() => setLoading(false));
@@ -71,10 +69,9 @@ export default function Chatbot() {
 
   return (
     <div className="page">
-      <h1 className="page-title">🤖 Chatbot Médical IA</h1>
+      <h1 className="page-title">Chatbot Médical IA</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
         <div className="card lg:col-span-1 p-4">
           <p className="text-sm font-semibold text-gray-600 mb-3">Nouvelle session</p>
           <select className="input text-sm mb-2" value={sessionType} onChange={e => setSessionType(e.target.value)}>
@@ -95,16 +92,16 @@ export default function Chatbot() {
           </div>
         </div>
 
-        {/* Chat window */}
         <div className="lg:col-span-3">
           {!active ? (
             <div className="card flex flex-col items-center justify-center py-24 text-gray-700">
-              <p className="text-5xl mb-4">💬</p>
+              <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center mb-4">
+                <ChatBubbleIcon className="w-8 h-8 text-brand-300" />
+              </div>
               <p>Sélectionnez ou créez une session pour démarrer.</p>
             </div>
           ) : (
             <div className="card p-0 overflow-hidden flex flex-col" style={{ height: "520px" }}>
-              {/* Header */}
               <div className="flex items-center justify-between px-5 py-3 border-b border-brand-100 bg-brand-50">
                 <span className="font-semibold text-brand-700">{SESSION_LABELS[active.type]}</span>
                 {!active.datefin && (
@@ -112,7 +109,6 @@ export default function Chatbot() {
                 )}
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                 {messages.length === 0 && (
                   <p className="text-center text-gray-700 text-sm mt-8">Envoyez un message pour commencer.</p>
@@ -130,7 +126,6 @@ export default function Chatbot() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Input */}
               {!active.datefin && (
                 <form onSubmit={sendMessage} className="flex gap-2 px-4 py-3 border-t border-brand-100">
                   <input className="input flex-1 text-sm" placeholder="Posez votre question..."

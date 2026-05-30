@@ -1,4 +1,3 @@
-// MedicalContent model - articles and videos added by admin (Video/Article subtypes)
 const mongoose = require("mongoose");
 
 const contentSchema = new mongoose.Schema(

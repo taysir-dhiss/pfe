@@ -1,17 +1,15 @@
-// Page Gestion des notifications (admin) — l'admin peut envoyer des notifications manuelles aux patientes
-// Les notifications sont stockées en mémoire RAM et apparaissent dans le centre de notifications des patientes
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { BellIcon, InboxEmptyIcon, TrashIcon } from "../../components/Icons";
 
 export default function ManageNotifications() {
-  const [patients, setPatients] = useState([]);             // Liste des patientes pour le sélecteur
-  const [notifs, setNotifs] = useState([]);                 // Historique des notifications envoyées
+  const [patients, setPatients] = useState([]);
+  const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ patientId: "", message: "" }); // Formulaire d'envoi
-  const [msg, setMsg] = useState({ text: "", type: "" });   // Message de retour (succès / erreur)
+  const [form, setForm] = useState({ patientId: "", message: "" });
+  const [msg, setMsg] = useState({ text: "", type: "" });
 
-  // Charge la liste des patientes et l'historique des notifications en parallèle
   const load = async () => {
     const [pRes, nRes] = await Promise.all([api.get("/admin/patients"), api.get("/admin/notifications")]);
     setPatients(pRes.data);
@@ -44,10 +42,12 @@ export default function ManageNotifications() {
 
   return (
     <div className="page">
-      <h1 className="page-title">🔔 Gestion des notifications</h1>
+      <h1 className="page-title flex items-center gap-2">
+        <BellIcon className="w-6 h-6 text-brand-600" />
+        Gestion des notifications
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Send form */}
         <div className="card">
           <h2 className="text-lg font-semibold text-brand-700 mb-4">Envoyer une notification</h2>
 
@@ -75,13 +75,14 @@ export default function ManageNotifications() {
           </form>
         </div>
 
-        {/* Notifications list */}
         <div className="lg:col-span-2 space-y-3">
           <p className="text-sm text-gray-700 font-medium">{notifs.length} notification(s) envoyée(s)</p>
 
           {notifs.length === 0 ? (
             <div className="card text-center text-gray-700 py-12">
-              <p className="text-4xl mb-3">📭</p>
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <InboxEmptyIcon className="w-8 h-8 text-gray-400" />
+              </div>
               <p>Aucune notification envoyée.</p>
             </div>
           ) : notifs.map(n => (
@@ -97,7 +98,9 @@ export default function ManageNotifications() {
                 <p className="text-sm text-gray-600">{n.message}</p>
                 <p className="text-xs text-gray-700 mt-1">{new Date(n.dateEnvoi).toLocaleString("fr-FR")}</p>
               </div>
-              <button onClick={() => handleDelete(n._id)} className="text-red-400 hover:text-red-600 text-xl flex-shrink-0">🗑️</button>
+              <button onClick={() => handleDelete(n._id)} className="text-gray-400 hover:text-red-500 transition flex-shrink-0 p-1">
+                <TrashIcon className="w-5 h-5" />
+              </button>
             </div>
           ))}
         </div>

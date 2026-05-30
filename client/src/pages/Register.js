@@ -39,7 +39,9 @@ export default function Register() {
     <div className="min-h-screen bg-brand-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🎗️</div>
+          <div className="flex justify-center mb-3">
+            <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`} alt="CancerCare" className="w-12 h-14 object-contain" />
+          </div>
           <h1 className="text-3xl font-bold text-brand-700">CancerCare</h1>
           <p className="text-gray-700 mt-1">Créez votre compte patient</p>
         </div>

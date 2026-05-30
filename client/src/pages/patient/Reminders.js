@@ -1,13 +1,10 @@
-// Page Rappels — la patiente gère ses alarmes personnalisées (médicaments, soins, etc.)
-// Supporte trois types : ponctuel ("once"), quotidien ("daily"), hebdomadaire ("weekly")
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { ClockIcon, PencilIcon, PlayIcon, PauseIcon, TrashIcon } from "../../components/Icons";
 
-// Noms abrégés des jours pour la sélection des jours de rappel hebdomadaire
 const DAY_NAMES = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
-// Convertit une date UTC en format datetime-local pour l'input HTML
 const toDatetimeLocal = d => {
   if (!d) return "";
   const dt = new Date(d);
@@ -15,23 +12,20 @@ const toDatetimeLocal = d => {
   return dt.toISOString().slice(0, 16);
 };
 
-// Valeurs initiales du formulaire de création d'alarme
 const blankForm = { label: "", repeatType: "daily", days: [], time: "08:00", date: "" };
 
 export default function Reminders() {
-  const [reminders, setReminders] = useState([]);          // Liste des rappels de la patiente
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(blankForm);             // État du formulaire de création/modification
-  const [msg, setMsg] = useState({ text: "", type: "" });  // Message de retour (succès / erreur)
-  const [editing, setEditing] = useState(null);            // ID du rappel en cours de modification
+  const [reminders, setReminders] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [form, setForm]           = useState(blankForm);
+  const [msg, setMsg]             = useState({ text: "", type: "" });
+  const [editing, setEditing]     = useState(null);
 
-  // Charge les rappels depuis l'API
   const load = () =>
     api.get("/reminders").then(({ data }) => setReminders(data)).finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
 
-  // Ajoute ou retire un jour de la liste des jours sélectionnés (rappel hebdomadaire)
   const toggleDay = d => {
     setForm(prev => ({
       ...prev,
@@ -102,11 +96,13 @@ export default function Reminders() {
 
   return (
     <div className="page">
-      <h1 className="page-title">⏰ Mes Rappels</h1>
+      <h1 className="page-title flex items-center gap-2">
+        <ClockIcon className="w-6 h-6 text-brand-600" />
+        Mes Rappels
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Form ─────────────────────────────────────────────────────── */}
         <div className="card">
           <h2 className="text-lg font-semibold text-brand-700 mb-4">
             {editing ? "Modifier le rappel" : "Créer un rappel"}
@@ -179,11 +175,12 @@ export default function Reminders() {
           </form>
         </div>
 
-        {/* ── List ─────────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-3">
           {reminders.length === 0 ? (
             <div className="card text-center text-gray-700 py-12">
-              <p className="text-4xl mb-3">⏰</p>
+              <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-3">
+                <ClockIcon className="w-8 h-8 text-brand-300" />
+              </div>
               <p>Aucun rappel configuré.</p>
             </div>
           ) : reminders.map(r => (
@@ -198,17 +195,17 @@ export default function Reminders() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button onClick={() => toggle(r._id)}
-                    className="btn-secondary btn-sm text-xs"
+                    className="btn-secondary btn-sm flex items-center gap-1 text-xs"
                     title={r.active ? "Désactiver" : "Activer"}>
-                    {r.active ? "⏸" : "▶"}
+                    {r.active ? <PauseIcon className="w-3.5 h-3.5" /> : <PlayIcon className="w-3.5 h-3.5" />}
                   </button>
                   <button onClick={() => startEdit(r)}
-                    className="btn-secondary btn-sm text-xs" title="Modifier">
-                    ✏️
+                    className="btn-secondary btn-sm flex items-center" title="Modifier">
+                    <PencilIcon className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => del(r._id)}
-                    className="text-red-400 hover:text-red-600 text-xl transition" title="Supprimer">
-                    🗑️
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Supprimer">
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               </div>

@@ -1,17 +1,12 @@
-// Page Gestion de la base RAG (admin) — upload, liste et suppression de documents PDF médicaux
-// Les PDFs sont découpés en chunks, vectorisés via OpenAI et stockés en base MongoDB.
-// Ces chunks sont ensuite utilisés pour enrichir les réponses du chatbot IA (Retrieval-Augmented Generation).
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
-// Modale de confirmation avant suppression d'un document indexé
 function ConfirmModal({ fileName, onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
-        {/* Icon */}
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 border border-red-100 mx-auto mb-4">
           <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round"
@@ -43,7 +38,7 @@ function ConfirmModal({ fileName, onConfirm, onCancel }) {
 }
 
 function DocRow({ doc, onDelete }) {
-  const [deleting, setDeleting]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleDelete = async () => {
@@ -99,13 +94,13 @@ function DocRow({ doc, onDelete }) {
 }
 
 export default function ManageRAG() {
-  const [docs, setDocs]       = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [file, setFile]       = useState(null);
+  const [docs, setDocs]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [file, setFile]           = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress]   = useState("");
-  const [msg, setMsg]         = useState({ text: "", type: "" });
-  const fileRef               = useRef(null);
+  const [msg, setMsg]             = useState({ text: "", type: "" });
+  const fileRef                   = useRef(null);
 
   const loadDocs = () =>
     api.get("/rag/documents")
@@ -143,7 +138,7 @@ export default function ManageRAG() {
         timeout: 120000,
       });
       setMsg({
-        text: `✅ "${data.sourceFile}" indexé — ${data.chunkCount} chunks · ${data.pages} page(s)`,
+        text: `"${data.sourceFile}" indexé — ${data.chunkCount} chunks · ${data.pages} page(s)`,
         type: "success",
       });
       setFile(null);
@@ -164,14 +159,13 @@ export default function ManageRAG() {
 
   return (
     <div className="page">
-      <h1 className="page-title">📖 Base de connaissances RAG</h1>
+      <h1 className="page-title">Base de connaissances RAG</h1>
       <p className="text-sm text-gray-700 mb-6 -mt-2">
         Indexez des PDFs médicaux pour enrichir automatiquement les réponses du chatbot IA.
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-        {/* ── Upload form ─────────────────────────────────────────────────── */}
         <div className="card lg:col-span-2">
           <h2 className="text-base font-semibold text-brand-700 mb-4">Indexer un PDF</h2>
 
@@ -186,7 +180,6 @@ export default function ManageRAG() {
           )}
 
           <form onSubmit={handleUpload} className="space-y-4">
-            {/* Drop zone */}
             <label className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-2xl cursor-pointer transition ${
               file ? "border-brand-400 bg-brand-50" : "border-gray-200 bg-gray-50 hover:border-brand-300 hover:bg-brand-50/40"
             }`}>
@@ -233,7 +226,6 @@ export default function ManageRAG() {
             </button>
           </form>
 
-          {/* Info box */}
           <div className="mt-5 bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700 space-y-1.5">
             <p className="font-semibold">Comment ça fonctionne</p>
             <p>• Le texte est extrait du PDF et découpé en chunks de ~500 tokens.</p>
@@ -242,7 +234,6 @@ export default function ManageRAG() {
           </div>
         </div>
 
-        {/* ── Documents list ───────────────────────────────────────────────── */}
         <div className="card lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-brand-700">Documents indexés</h2>

@@ -1,8 +1,5 @@
-// CRUD operations for Patient (own profile + admin access)
 const Patient = require("../models/Patient");
 const bcrypt = require("bcryptjs");
-
-// ─── Patient: own profile ─────────────────────────────────────────────────────
 
 exports.getMyProfile = async (req, res) => {
   try {

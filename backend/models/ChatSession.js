@@ -1,4 +1,3 @@
-// ChatSession model - a conversation session between patient and chatbot
 const mongoose = require("mongoose");
 
 const chatSessionSchema = new mongoose.Schema(

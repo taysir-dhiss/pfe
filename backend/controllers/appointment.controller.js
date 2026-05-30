@@ -1,10 +1,8 @@
-// Appointment controller — patient CRUD only, no status, no DB notifications
 const Appointment = require("../models/Appointment");
 
 const fmtTime = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const fmtDate = d => new Date(d).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
-// POST /api/appointments
 exports.createAppointment = async (req, res) => {
   try {
     const { type, date, medecin, customReminderDate } = req.body;
@@ -24,7 +22,6 @@ exports.createAppointment = async (req, res) => {
   }
 };
 
-// GET /api/appointments
 exports.getMyAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find({ patientId: req.user.id }).sort({ date: 1 });
@@ -34,7 +31,6 @@ exports.getMyAppointments = async (req, res) => {
   }
 };
 
-// GET /api/appointments/:id
 exports.getAppointmentById = async (req, res) => {
   try {
     const appointment = await Appointment.findOne({ _id: req.params.id, patientId: req.user.id });
@@ -45,7 +41,6 @@ exports.getAppointmentById = async (req, res) => {
   }
 };
 
-// PUT /api/appointments/:id
 exports.updateAppointment = async (req, res) => {
   try {
     const { patientId, reminderSent, customReminderSent, ...data } = req.body;
@@ -53,7 +48,6 @@ exports.updateAppointment = async (req, res) => {
     const existing = await Appointment.findOne({ _id: req.params.id, patientId: req.user.id });
     if (!existing) return res.status(404).json({ message: "Rendez-vous introuvable" });
 
-    // Reset reminder flag if date changed so the 4h reminder fires again
     if (data.date && new Date(data.date).getTime() !== existing.date.getTime()) {
       data.reminderSent = false;
     }
@@ -65,7 +59,6 @@ exports.updateAppointment = async (req, res) => {
   }
 };
 
-// DELETE /api/appointments/:id
 exports.deleteAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
@@ -76,7 +69,6 @@ exports.deleteAppointment = async (req, res) => {
   }
 };
 
-// POST /api/appointments/:id/reminder  — set custom reminder datetime
 exports.setCustomReminder = async (req, res) => {
   try {
     const { customReminderDate } = req.body;
@@ -94,7 +86,6 @@ exports.setCustomReminder = async (req, res) => {
   }
 };
 
-// DELETE /api/appointments/:id/reminder  — remove custom reminder
 exports.removeCustomReminder = async (req, res) => {
   try {
     const appointment = await Appointment.findOneAndUpdate(

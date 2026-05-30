@@ -1,7 +1,5 @@
-// Recommendation controller - lecture des recommandations IA par patient et admin
 const Recommendation = require("../models/Recommendation");
 
-// GET /api/recommendations  (patient: ses recommandations)
 exports.getMyRecommendations = async (req, res) => {
   try {
     const recommendations = await Recommendation.find({ patientId: req.user.id })
@@ -13,7 +11,6 @@ exports.getMyRecommendations = async (req, res) => {
   }
 };
 
-// GET /api/recommendations/:id  (patient)
 exports.getRecommendationById = async (req, res) => {
   try {
     const recommendation = await Recommendation.findOne({
@@ -27,7 +24,6 @@ exports.getRecommendationById = async (req, res) => {
   }
 };
 
-// GET /api/admin/recommendations  (admin: toutes)
 exports.getAllRecommendations = async (req, res) => {
   try {
     const recommendations = await Recommendation.find()
@@ -40,7 +36,6 @@ exports.getAllRecommendations = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/recommendations/:id  (admin)
 exports.deleteRecommendation = async (req, res) => {
   try {
     const recommendation = await Recommendation.findByIdAndDelete(req.params.id);

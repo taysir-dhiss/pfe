@@ -1,18 +1,11 @@
-/**
- * AIAnalysisService — Advanced AI pipeline for symptom classification,
- * medical reasoning, safety filtering, and response assembly.
- *
- * Pipeline: classifySymptoms → generateMedicalAnalysis → applySafetyFilter → buildFinalResponse
- */
-
 const OpenAI = require("openai");
 
 const AI_MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
+const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 const DISCLAIMER =
-  "⚕️ *Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.*";
+  `${DISCLAIMER_MARKER} Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
 
-// Patterns that always trigger escalation regardless of computed severity
 const CRITICAL_PATTERNS = [
   /douleur.{0,20}(thoracique|poitrine)/i,
   /dyspnée.{0,15}(sévère|aiguë|intense|soudaine)/i,
@@ -26,7 +19,6 @@ const CRITICAL_PATTERNS = [
   /fièvre.{0,15}38[.,][5-9]/i,
 ];
 
-// ── OpenAI singleton ──────────────────────────────────────────────────────────
 let _openai = null;
 function getOpenAI() {
   if (!_openai) {
@@ -36,12 +28,6 @@ function getOpenAI() {
   return _openai;
 }
 
-// ── 1. AI Symptom Classifier ──────────────────────────────────────────────────
-/**
- * @param {string} message  Raw user message
- * @param {Array}  history  ChatMessage documents (optional, improves context)
- * @returns {{ symptoms: string[], severity: string, confidence: number }}
- */
 async function classifySymptoms(message, history = []) {
   const histCtx = history
     .slice(-6)
@@ -85,22 +71,16 @@ Règles générales : déduis les symptômes implicites, ne te limite pas aux mo
   };
 }
 
-// ── 2. Medical Reasoning Engine ───────────────────────────────────────────────
-/**
- * @param {{ symptoms: string[], severity: string, confidence: number }} classification
- * @param {{ userMessage?: string, history?: Array, sessionType?: string }} opts
- * @returns {{ analysis: string, recommendations: Array<{text: string, priority: string}> }}
- */
 async function generateMedicalAnalysis(classification, opts = {}) {
   const {
     userMessage       = "",
     history           = [],
     sessionType       = "general_support",
-    semanticContext   = null,   // matching recommendation text (or null)
-    semanticTier      = "none", // "high" | "medium" | "low" | "none"
-    needsConsultation = false,  // true → add medical consultation directive
-    detectedCategory  = null,   // keyword-matched topic (e.g. "fatigue", "douleur")
-    ragChunks         = [],     // top-K chunks from RAG retrieval
+    semanticContext   = null,
+    semanticTier      = "none",
+    needsConsultation = false,
+    detectedCategory  = null,
+    ragChunks         = [],
   } = opts;
   const { symptoms, severity, confidence } = classification;
 
@@ -115,12 +95,11 @@ async function generateMedicalAnalysis(classification, opts = {}) {
 
   const urgencyDirective =
     severity === "critical"
-      ? "⚠️ URGENCE : indique clairement dans l'analyse que la patiente doit contacter son équipe médicale IMMÉDIATEMENT."
+      ? "URGENCE : indique clairement dans l'analyse que la patiente doit contacter son équipe médicale IMMÉDIATEMENT."
       : severity === "high"
-      ? "📋 CONSULTATION : suggère de consulter un médecin prochainement, sans être alarmant."
+      ? "CONSULTATION : suggère de consulter un médecin prochainement, sans être alarmant."
       : "";
 
-  // ── RAG block — inject retrieved medical knowledge chunks ────────────────
   let ragBlock = "";
   if (ragChunks && ragChunks.length > 0) {
     const excerpts = ragChunks
@@ -128,14 +107,13 @@ async function generateMedicalAnalysis(classification, opts = {}) {
       .join("\n---\n");
     ragBlock = `
 
-📚 DOCUMENTATION MÉDICALE INDEXÉE (extraits pertinents) :
+DOCUMENTATION MÉDICALE INDEXÉE (extraits pertinents) :
 ---
 ${excerpts}
 ---
 Utilise ces extraits pour enrichir et préciser ta réponse si pertinent. Ne les reproduis pas verbatim. Ne cite pas les numéros d'extraits dans ta réponse.`;
   }
 
-  // Inject semantically matched recommendation as context when available
   let semanticBlock = "";
   if (semanticContext && (semanticTier === "high" || semanticTier === "medium")) {
     const label =
@@ -151,14 +129,12 @@ ${semanticContext}
 Adapte ta réponse en tenant compte de ce contexte. Ne le reproduis pas mot pour mot.`;
   }
 
-  // Category-specific structured response directive
   const categoryDirective = detectedCategory
-    ? `\n\n📌 SUJET IDENTIFIÉ : "${detectedCategory}". Génère une réponse médicale structurée, spécifique et professionnelle sur ce sujet précis. La réponse doit contenir : (1) une validation empathique de ce que ressent la patiente, (2) une explication claire du symptôme dans le contexte du cancer du sein, (3) des conseils pratiques et détaillés, (4) les signaux d'alarme à surveiller. Ne sois pas vague ou générique — la réponse doit sembler vérifiée et fiable.`
+    ? `\n\nSUJET IDENTIFIÉ : "${detectedCategory}". Génère une réponse médicale structurée, spécifique et professionnelle sur ce sujet précis. La réponse doit contenir : (1) une validation empathique de ce que ressent la patiente, (2) une explication claire du symptôme dans le contexte du cancer du sein, (3) des conseils pratiques et détaillés, (4) les signaux d'alarme à surveiller. Ne sois pas vague ou générique — la réponse doit sembler vérifiée et fiable.`
     : "";
 
-  // Consultation directive for ambiguous / complex cases
   const consultationDirective = needsConsultation
-    ? "\n🩺 IMPORTANT : si la situation décrite est complexe, ambiguë ou dépasse les capacités d'analyse de l'IA, recommande explicitement de consulter un médecin ou un professionnel de santé, et rappelle qu'il ne s'agit pas d'un diagnostic médical."
+    ? "\nIMPORTANT : si la situation décrite est complexe, ambiguë ou dépasse les capacités d'analyse de l'IA, recommande explicitement de consulter un médecin ou un professionnel de santé, et rappelle qu'il ne s'agit pas d'un diagnostic médical."
     : "";
 
   const systemPrompt = `Tu es Sophie, assistante médicale IA en oncologie du sein (CalmCare).
@@ -204,11 +180,6 @@ Règles :
   };
 }
 
-// ── 3. Safety Filter ──────────────────────────────────────────────────────────
-/**
- * @param {{ symptoms: string[], severity: string, confidence: number }} classification
- * @returns {{ requiresEscalation: boolean, action?: string, reason?: string, suggestsAppointment?: boolean }}
- */
 function applySafetyFilter(classification) {
   const { severity = "low", symptoms = [], confidence = 1 } = classification;
 
@@ -229,7 +200,6 @@ function applySafetyFilter(classification) {
   };
 }
 
-// ── 4. Final Response Builder (kept as fallback) ─────────────────────────────
 function buildFinalResponse({ contenu, classification, analysis, safety, fallbackText = null }) {
   if (!analysis || !analysis.analysis) {
     const base = fallbackText || "Je suis là pour vous accompagner. N'hésitez pas à décrire vos symptômes plus précisément.";
@@ -238,18 +208,15 @@ function buildFinalResponse({ contenu, classification, analysis, safety, fallbac
 
   const parts = [];
   if (safety?.requiresEscalation) {
-    parts.push("🚨 **Symptômes critiques détectés — Consultez votre équipe médicale immédiatement**\n");
+    parts.push("**Alerte : Symptômes critiques détectés — Consultez votre équipe médicale immédiatement**\n");
   }
   parts.push(analysis.analysis);
   if (analysis.recommendations?.length > 0) {
-    const lines = analysis.recommendations.map((r) => {
-      const icon = r.priority === "urgent" ? "🔴" : r.priority === "high" ? "🟠" : r.priority === "medium" ? "🟡" : "🟢";
-      return `${icon} ${r.text}`;
-    });
+    const lines = analysis.recommendations.map((r) => `- ${r.text}`);
     parts.push(`\n**Recommandations :**\n${lines.join("\n")}`);
   }
   if (safety?.requiresEscalation) {
-    parts.push("\n⚠️ **Vos symptômes nécessitent une attention médicale urgente. Veuillez prendre rendez-vous immédiatement.**");
+    parts.push("\n**Attention : Vos symptômes nécessitent une attention médicale urgente. Veuillez prendre rendez-vous immédiatement.**");
   } else if (safety?.suggestsAppointment) {
     parts.push("\nJe vous encourage à en parler avec votre médecin lors de votre prochaine consultation — vous pouvez prendre rendez-vous depuis votre espace patient.");
   }
@@ -257,17 +224,6 @@ function buildFinalResponse({ contenu, classification, analysis, safety, fallbac
   return parts.join("\n");
 }
 
-// ── 5. Conversational Response with Full Memory ───────────────────────────────
-/**
- * Generates a single natural-language reply that is fully aware of the entire
- * conversation history. Replaces the generateMedicalAnalysis → buildFinalResponse
- * two-step pipeline for follow-up messages.
- *
- * @param {{ symptoms: string[], severity: string, confidence: number }} classification
- * @param {{ userMessage, history, ragChunks, semanticContext, semanticTier,
- *            needsConsultation, detectedCategory, safety }} opts
- * @returns {Promise<string>}
- */
 async function generateConversationalResponse(classification, opts = {}) {
   const {
     userMessage       = "",
@@ -283,31 +239,28 @@ async function generateConversationalResponse(classification, opts = {}) {
   const { symptoms = [], severity = "low", confidence = 0.5 } = classification;
   const symptomList = symptoms.length > 0 ? symptoms.join(", ") : "non précisé";
 
-  // ── Urgency directive ──────────────────────────────────────────────────────
   let urgencyNote = "";
   if (safety.requiresEscalation || severity === "critical") {
     urgencyNote =
-      "\n🚨 URGENCE : indique CLAIREMENT à la patiente qu'elle doit contacter son équipe médicale IMMÉDIATEMENT. " +
+      "\nURGENCE : indique CLAIREMENT à la patiente qu'elle doit contacter son équipe médicale IMMÉDIATEMENT. " +
       "Reste calme et rassurante — ne dramatise pas — mais sois ferme. Mentionne qu'elle peut prendre rendez-vous depuis son espace patient.";
   } else if (severity === "high") {
-    urgencyNote = "\n⚠️ Suggère de consulter un médecin dans les prochains jours. Naturellement, sans alarmer.";
+    urgencyNote = "\nSuggère de consulter un médecin dans les prochains jours. Naturellement, sans alarmer.";
   } else if (needsConsultation) {
-    urgencyNote = "\n🩺 Si la situation te semble complexe ou ambiguë, recommande de consulter un professionnel de santé.";
+    urgencyNote = "\nSi la situation te semble complexe ou ambiguë, recommande de consulter un professionnel de santé.";
   }
 
-  // ── RAG knowledge excerpts ─────────────────────────────────────────────────
   let ragNote = "";
   if (ragChunks && ragChunks.length > 0) {
     const excerpts = ragChunks
       .map((c, i) => `[Source ${i + 1} — ${c.sourceFile}]\n${c.text.slice(0, 500)}`)
       .join("\n---\n");
     ragNote =
-      "\n\n📚 DOCUMENTATION MÉDICALE DE RÉFÉRENCE (extraits pertinents) :\n---\n" +
+      "\n\nDOCUMENTATION MÉDICALE DE RÉFÉRENCE (extraits pertinents) :\n---\n" +
       excerpts +
       "\n---\nAppuie tes recommandations sur ces informations si pertinent. Ne les reproduis pas verbatim, ne cite pas les numéros de source.";
   }
 
-  // ── Semantic context ────────────────────────────────────────────────────────
   let semanticNote = "";
   if (semanticContext && (semanticTier === "high" || semanticTier === "medium")) {
     semanticNote =
@@ -315,23 +268,21 @@ async function generateConversationalResponse(classification, opts = {}) {
       "Ne la répète pas mot pour mot — enrichis et adapte.";
   }
 
-  // ── Category hint ──────────────────────────────────────────────────────────
   const categoryNote = detectedCategory
     ? `\n\nSujet identifié : "${detectedCategory}". Réponds de façon spécifique et pratique sur ce sujet.`
     : "";
 
-  // ── System prompt ──────────────────────────────────────────────────────────
   const systemPrompt =
     `Tu es Sophie, assistante médicale IA spécialisée en oncologie du sein pour CalmCare TN.\n\n` +
 
-    `🧠 MÉMOIRE DE CONVERSATION — RÈGLE PRINCIPALE :\n` +
+    `MÉMOIRE DE CONVERSATION — RÈGLE PRINCIPALE :\n` +
     `Tu as accès à l'intégralité de la conversation ci-dessous. Tu DOIS l'utiliser pour :\n` +
     `- Ne jamais répéter ce qui a déjà été dit ou conseillé\n` +
     `- Référencer naturellement les échanges précédents ("tu m'as dit que...", "comme on en a parlé...", "si je me souviens bien...", "tu m'avais expliqué...")\n` +
     `- Adapter ton ton selon l'évolution émotionnelle de la patiente au fil des échanges\n` +
     `- Construire sur tes réponses précédentes — ne repars jamais de zéro\n\n` +
 
-    `💬 STYLE DE RÉPONSE :\n` +
+    `STYLE DE RÉPONSE :\n` +
     `- Français naturel, humain, chaleureux — jamais robotique ni systématiquement en listes\n` +
     `- Phrases courtes et fluides, comme dans une vraie conversation\n` +
     `- Commence par reconnaître ce que la patiente ressent ou vient de dire\n` +
@@ -339,22 +290,20 @@ async function generateConversationalResponse(classification, opts = {}) {
     `- Varie tes formulations selon le contexte émotionnel actuel\n` +
     `- Sois concise : 3-5 phrases bien choisies, jamais un long discours\n\n` +
 
-    `🏥 ANALYSE CLINIQUE EN COURS :\n` +
+    `ANALYSE CLINIQUE EN COURS :\n` +
     `Symptômes détectés : ${symptomList}\n` +
     `Sévérité estimée : ${severity}\n` +
     `Confiance IA : ${(confidence * 100).toFixed(0)}%` +
     `${urgencyNote}${ragNote}${semanticNote}${categoryNote}\n\n` +
 
-    `⚠️ RÈGLES ABSOLUES :\n` +
+    `RÈGLES ABSOLUES :\n` +
     `- Ne pose JAMAIS de diagnostic médical\n` +
     `- Génère une réponse UNIQUE en texte naturel (jamais du JSON, jamais de markdown excessif)\n` +
     `- Ne recommence PAS la conversation comme si c'était le premier message\n` +
+    `- N'utilise pas d'emojis dans ta réponse.\n` +
     `- Termine TOUJOURS par exactement cette ligne sur une nouvelle ligne :\n` +
-    `⚕️ *Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.*`;
+    `${DISCLAIMER_MARKER} Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
 
-  // ── Conversation history — exclude current user message (last entry in history)
-  // history already contains the saved current user message as its last item;
-  // we separate it so it appears as the explicit final "user" turn.
   const historyWithoutCurrent = history.slice(0, -1).slice(-14);
   const historyMessages = historyWithoutCurrent.map((m) => ({
     role:    m.role === "patient" ? "user" : "assistant",
@@ -376,8 +325,7 @@ async function generateConversationalResponse(classification, opts = {}) {
 
   let response = completion.choices[0].message.content.trim();
 
-  // Guarantee disclaimer is present even if the model omitted it
-  if (!response.includes("⚕️")) {
+  if (!response.includes(DISCLAIMER_MARKER)) {
     response += `\n\n${DISCLAIMER}`;
   }
 

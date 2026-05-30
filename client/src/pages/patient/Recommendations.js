@@ -1,10 +1,7 @@
-// Page Recommandations — affiche les recommandations médicales générées par l'IA pour la patiente
-// Ces recommandations sont créées automatiquement après l'analyse des symptômes déclarés
 import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
 
-/* ─── Animation styles ───────────────────────────────────────────────────── */
 const ANIM_STYLES = `
   @keyframes recFadeUp {
     from { opacity:0; transform:translateY(14px) scale(0.96); }
@@ -36,7 +33,6 @@ const ANIM_STYLES = `
   .rec-opt-in  { animation:recOptIn   0.3s ease both;                   }
 `;
 
-/* ─── Priority config ────────────────────────────────────────────────────── */
 const PRIORITY = {
   faible: { label: "Faible", cls: "bg-green-100 text-green-700",   bar: "#22c55e" },
   modere: { label: "Modere", cls: "bg-blue-100 text-blue-700",     bar: "#3b82f6" },
@@ -44,7 +40,6 @@ const PRIORITY = {
   urgent: { label: "Urgent", cls: "bg-red-100 text-red-700",       bar: "#ef4444" },
 };
 
-/* ─── Shared continue options ────────────────────────────────────────────── */
 const CONTINUE_OPTIONS = [
   { label: "Alimentation saine",  next: "diet"     },
   { label: "Exercice a domicile", next: "exercise" },
@@ -52,7 +47,6 @@ const CONTINUE_OPTIONS = [
 ];
 const continueNode = (msg) => ({ message: msg, options: CONTINUE_OPTIONS });
 
-/* ─── Conversation tree ──────────────────────────────────────────────────── */
 const TREE = {
   root: {
     message: "Comment puis-je vous aider aujourd'hui ?",
@@ -63,7 +57,6 @@ const TREE = {
     ],
   },
 
-  // ── ALIMENTATION ──────────────────────────────────────────────────────────
   diet: {
     message: "Que souhaitez-vous savoir ?",
     options: [
@@ -124,7 +117,6 @@ const TREE = {
     "REPAS FACILES POUR LES JOURS DE FATIGUE\n\nPetit-dejeuner : Oeufs brouilles avec toast (10 min)\nDejeuner : Thon en boite avec crackers et concombre (5 min)\nDiner : Soupe d'avoine instantanee aux legumes (10 min)\nCollation : Banane avec beurre de cacahuete (1 min)\n\nOptions sans cuisson :\n- Yaourt avec granola et fruits\n- Avocat sur pain complet grille\n- Fromage blanc avec tranches de pomme\n\nConseil : Cuisinez en grande quantite quand vous avez de l'energie et conservez au refrigerateur.\n\nQue souhaitez-vous explorer ensuite ?"
   ),
 
-  // ── EXERCICE ──────────────────────────────────────────────────────────────
   exercise: {
     message: "Quel est votre niveau ?",
     options: [
@@ -185,7 +177,6 @@ const TREE = {
     "ENTRAINEMENT A DOMICILE AVANCE (45 min)\n\n1. Echauffement : 5 min de marche rapide + etirements dynamiques\n2. Cardio : 15 min de marche rapide, jogging leger ou velo stationnaire\n3. Musculation :\n   - Squats au poids du corps — 15 rep x 3 series\n   - Pompes contre le mur — 15 rep x 3 series\n   - Rowing avec elastique — 12 rep x 3 series\n   - Extensions des mollets debout — 15 rep x 2 series\n4. Gainage : Respiration abdominale assise — 5 min\n5. Recuperation : Etirement corps entier — 10 min\n\nReposez-vous 1 a 2 jours entre les seances. Consultez votre equipe soignante.\nRecherchez sur YouTube : entrainement a domicile patients cancer avance\n\nQue souhaitez-vous explorer ensuite ?"
   ),
 
-  // ── SANTE MENTALE ─────────────────────────────────────────────────────────
   mental: {
     message: "Comment vous sentez-vous ?",
     options: [
@@ -247,7 +238,6 @@ const TREE = {
   ),
 };
 
-/* ─── Bot avatar ──────────────────────────────────────────────────────────── */
 function BotAvatar() {
   return (
     <div
@@ -268,7 +258,6 @@ function BotAvatar() {
   );
 }
 
-/* ─── Typing indicator ────────────────────────────────────────────────────── */
 function TypingBubble() {
   return (
     <div className="rec-fade-up" style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
@@ -290,13 +279,11 @@ function TypingBubble() {
   );
 }
 
-/* ─── Bot bubble ──────────────────────────────────────────────────────────── */
 function BotBubble({ text, options, onOption, isNew }) {
   return (
     <div className={isNew ? "rec-fade-up" : ""} style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
       <BotAvatar />
       <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", gap: "8px" }}>
-        {/* Text bubble */}
         <div style={{
           background: "white",
           borderRadius: "20px 20px 20px 5px",
@@ -309,7 +296,6 @@ function BotBubble({ text, options, onOption, isNew }) {
           </p>
         </div>
 
-        {/* Option buttons */}
         {options && (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {options.map((opt, i) => (
@@ -365,7 +351,6 @@ function BotBubble({ text, options, onOption, isNew }) {
   );
 }
 
-/* ─── User bubble ─────────────────────────────────────────────────────────── */
 function UserBubble({ text, isNew }) {
   return (
     <div className={isNew ? "rec-fade-up" : ""} style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -384,7 +369,6 @@ function UserBubble({ text, isNew }) {
   );
 }
 
-/* ─── Guided chatbot ──────────────────────────────────────────────────────── */
 function GuidedChatbot({ onTopicSelect }) {
   const [messages, setMessages] = useState([
     { id: "init", from: "bot", text: TREE.root.message, options: TREE.root.options, isNew: false },
@@ -440,7 +424,6 @@ function GuidedChatbot({ onTopicSelect }) {
   );
 }
 
-/* ─── Main page ───────────────────────────────────────────────────────────── */
 export default function Recommendations() {
   const [recs, setRecs]       = useState([]);
   const [loading, setLoading] = useState(true);
@@ -467,7 +450,6 @@ export default function Recommendations() {
     <>
       <style>{ANIM_STYLES}</style>
 
-      {/* Page wrapper — inherits Rose.png background from App.js */}
       <div style={{
         minHeight: "calc(100vh - 64px)",
         display: "flex",
@@ -478,7 +460,6 @@ export default function Recommendations() {
         gap: "20px",
       }}>
 
-        {/* Title */}
         <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
           <h1 style={{
             margin: 0, fontSize: "24px", fontWeight: "700",
@@ -492,7 +473,6 @@ export default function Recommendations() {
           </p>
         </div>
 
-        {/* Chatbot card */}
         <div
           className="rec-float"
           style={{
@@ -506,7 +486,6 @@ export default function Recommendations() {
             overflow: "hidden",
           }}
         >
-          {/* Card header */}
           <div style={{
             background: "linear-gradient(135deg,#FFB6C1 0%,#FF8FAB 100%)",
             padding: "16px 20px",
@@ -537,7 +516,6 @@ export default function Recommendations() {
               </div>
             </div>
 
-            {/* Session topics badge */}
             {topics.length > 0 && (
               <span style={{
                 fontSize: "11px", background: "rgba(255,255,255,0.25)",
@@ -548,7 +526,6 @@ export default function Recommendations() {
               </span>
             )}
 
-            {/* Restart button */}
             <button
               onClick={handleRestart}
               style={{
@@ -563,7 +540,6 @@ export default function Recommendations() {
               onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.2)"; }}
               title="Recommencer la conversation"
             >
-              {/* Refresh icon */}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="1 4 1 10 7 10" />
                 <path d="M3.51 15a9 9 0 1 0 .49-3.7" />
@@ -572,13 +548,11 @@ export default function Recommendations() {
             </button>
           </div>
 
-          {/* Chat messages area */}
           <div style={{ height: "440px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <GuidedChatbot key={chatKey} onTopicSelect={handleTopicSelect} />
           </div>
         </div>
 
-        {/* Topics explored strip */}
         {topics.length > 0 && (
           <div
             className="rec-fade-up"
@@ -614,7 +588,6 @@ export default function Recommendations() {
           </div>
         )}
 
-        {/* AI Recommendations toggle */}
         {recs.length > 0 && (
           <div style={{ width: "100%", maxWidth: "540px", position: "relative", zIndex: 1 }}>
             <button

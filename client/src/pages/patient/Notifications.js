@@ -1,17 +1,12 @@
-// Page Notifications — deux onglets :
-// Onglet 1 "Alertes" : notifications en mémoire RAM (rappels de RDV et alarmes déclenchées), rejetables au clic
-// Onglet 2 "Mes alarmes" : rappels personnalisés persistants en base de données (CRUD complet)
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
-import { useNotifications } from "../../context/NotificationContext"; // Contexte qui gère le polling des notifications
+import { useNotifications } from "../../context/NotificationContext";
+import { BellIcon, ClockIcon, PillIcon, CalendarIcon, PencilIcon, PlusIcon, PlayIcon, PauseIcon } from "../../components/Icons";
 
-// Noms des jours pour l'affichage et la sélection des jours de rappel hebdomadaire
 const DAY_NAMES = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-// Valeurs par défaut du formulaire de création d'alarme
 const blankForm = { label: "", repeatType: "daily", days: [], time: "08:00", date: "" };
 
-// Convertit une date UTC en format datetime-local pour l'input HTML
 const toLocal = d => {
   if (!d) return "";
   const dt = new Date(d);
@@ -19,7 +14,6 @@ const toLocal = d => {
   return dt.toISOString().slice(0, 16);
 };
 
-// Formate une date ISO en chaîne lisible en français
 const fmtDate = iso =>
   new Date(iso).toLocaleString("fr-FR", {
     weekday: "short", day: "numeric", month: "short",
@@ -27,17 +21,15 @@ const fmtDate = iso =>
   });
 
 export default function Notifications() {
-  const [tab, setTab] = useState("alerts"); // Onglet actif : "alerts" ou "alarms"
-  // notifications : liste des alertes en mémoire ; dismiss/dismissAll : fonctions de suppression
+  const [tab, setTab] = useState("alerts");
   const { notifications, unread, dismiss, dismissAll } = useNotifications();
 
-  const [alarms, setAlarms]     = useState([]);          // Liste des alarmes personnalisées (DB)
-  const [loadingA, setLoadingA] = useState(true);        // Chargement initial des alarmes
-  const [form, setForm]         = useState(blankForm);   // État du formulaire d'alarme
-  const [editing, setEditing]   = useState(null);        // ID de l'alarme en cours de modification
-  const [msg, setMsg]           = useState({ text: "", type: "" }); // Message de retour
+  const [alarms, setAlarms]     = useState([]);
+  const [loadingA, setLoadingA] = useState(true);
+  const [form, setForm]         = useState(blankForm);
+  const [editing, setEditing]   = useState(null);
+  const [msg, setMsg]           = useState({ text: "", type: "" });
 
-  // Charge la liste des alarmes personnalisées depuis l'API
   const loadAlarms = () =>
     api.get("/reminders")
       .then(({ data }) => setAlarms(data))
@@ -87,7 +79,7 @@ export default function Notifications() {
     try {
       const { data } = await api.patch(`/reminders/${id}/toggle`);
       setAlarms(p => p.map(r => r._id === id ? data : r));
-    } catch { /* silent */ }
+    } catch {}
   };
 
   const delAlarm = async id => {
@@ -95,7 +87,7 @@ export default function Notifications() {
     try {
       await api.delete(`/reminders/${id}`);
       setAlarms(p => p.filter(r => r._id !== id));
-    } catch { /* silent */ }
+    } catch {}
   };
 
   const repeatLabel = r => {
@@ -108,13 +100,10 @@ export default function Notifications() {
   return (
     <div className="page">
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
+            <BellIcon className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-gray-800 leading-none">Notifications</h1>
@@ -134,11 +123,10 @@ export default function Notifications() {
         )}
       </div>
 
-      {/* ── Tabs ────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-2xl mb-6 w-fit">
         {[
-          { id: "alerts", label: "Alertes", icon: "🔔", badge: unread },
-          { id: "alarms", label: "Mes alarmes", icon: "⏰", badge: 0 },
+          { id: "alerts", label: "Alertes",    Icon: BellIcon,  badge: unread },
+          { id: "alarms", label: "Mes alarmes", Icon: ClockIcon, badge: 0 },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
@@ -146,7 +134,7 @@ export default function Notifications() {
                 ? "bg-white text-brand-700 shadow-sm"
                 : "text-gray-700 hover:text-gray-700"
             }`}>
-            <span>{t.icon}</span>
+            <t.Icon className="w-4 h-4" />
             {t.label}
             {t.badge > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center animate-badge-pop">
@@ -157,15 +145,12 @@ export default function Notifications() {
         ))}
       </div>
 
-      {/* ── Tab 1: Alerts ───────────────────────────────────────────────── */}
       {tab === "alerts" && (
         <div className="animate-fade-in">
           {notifications.length === 0 ? (
             <div className="card text-center py-20">
               <div className="w-20 h-20 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-brand-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                <BellIcon className="w-10 h-10 text-brand-300" />
               </div>
               <p className="font-semibold text-gray-600 mb-1">Aucune alerte active</p>
               <p className="text-sm text-gray-700">Vous recevrez ici les rappels de rendez-vous et d'alarmes.</p>
@@ -182,15 +167,13 @@ export default function Notifications() {
                   className="w-full text-left animate-fade-in group"
                   style={{ animationDelay: `${i * 40}ms` }}>
                   <div className="bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-start gap-4 hover:border-brand-200 hover:shadow-card transition-all duration-200">
-                    {/* Icon */}
-                    <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center text-xl shadow-sm ${
+                    <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${
                       n.type === "alarm"
                         ? "bg-purple-50 text-purple-500"
                         : "bg-brand-50 text-brand-500"
                     }`}>
-                      {n.type === "alarm" ? "💊" : "📅"}
+                      {n.type === "alarm" ? <PillIcon className="w-5 h-5" /> : <CalendarIcon className="w-5 h-5" />}
                     </div>
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 leading-snug">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1.5">
@@ -202,7 +185,6 @@ export default function Notifications() {
                         <span className="text-xs text-gray-700">{fmtDate(n.triggerTime)}</span>
                       </div>
                     </div>
-                    {/* Dismiss hint */}
                     <div className="flex-shrink-0 flex flex-col items-end gap-1">
                       <span className="w-2 h-2 rounded-full bg-red-400 group-hover:bg-gray-300 transition-colors" />
                       <span className="text-[10px] text-gray-600 group-hover:text-red-400 transition-colors font-medium">Marquer lu</span>
@@ -215,14 +197,14 @@ export default function Notifications() {
         </div>
       )}
 
-      {/* ── Tab 2: Alarm management ─────────────────────────────────────── */}
       {tab === "alarms" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
 
-          {/* Form */}
           <div className="card">
-            <h2 className="font-display text-lg font-bold text-gray-800 mb-4">
-              {editing ? "✏️ Modifier l'alarme" : "➕ Nouvelle alarme"}
+            <h2 className="font-display text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              {editing
+                ? <><PencilIcon className="w-5 h-5 text-brand-500" /> Modifier l'alarme</>
+                : <><PlusIcon className="w-5 h-5 text-brand-500" /> Nouvelle alarme</>}
             </h2>
 
             {msg.text && (
@@ -297,12 +279,11 @@ export default function Notifications() {
             </form>
           </div>
 
-          {/* Alarm list */}
           <div className="lg:col-span-2 space-y-3">
             {loadingA ? <Spinner /> : alarms.length === 0 ? (
               <div className="card text-center py-16">
                 <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-3">
-                  <span className="text-3xl">⏰</span>
+                  <ClockIcon className="w-8 h-8 text-brand-300" />
                 </div>
                 <p className="font-semibold text-gray-600 mb-1">Aucune alarme configurée</p>
                 <p className="text-sm text-gray-700">Créez votre première alarme médicale à gauche.</p>
@@ -314,10 +295,10 @@ export default function Notifications() {
                 }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg mt-0.5 ${
-                      r.active ? "bg-brand-50" : "bg-gray-100"
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5 ${
+                      r.active ? "bg-brand-50 text-brand-500" : "bg-gray-100 text-gray-400"
                     }`}>
-                      💊
+                      <PillIcon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-800 truncate">{r.label}</p>
@@ -334,18 +315,18 @@ export default function Notifications() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => toggleAlarm(r._id)}
                       title={r.active ? "Désactiver" : "Activer"}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
                         r.active
                           ? "border-yellow-200 text-yellow-600 hover:bg-yellow-50"
                           : "border-green-200 text-green-600 hover:bg-green-50"
                       }`}>
-                      {r.active ? "⏸ OFF" : "▶ ON"}
+                      {r.active
+                        ? <><PauseIcon className="w-3.5 h-3.5" /> OFF</>
+                        : <><PlayIcon className="w-3.5 h-3.5" /> ON</>}
                     </button>
                     <button onClick={() => startEdit(r)}
                       className="p-2 rounded-xl text-gray-700 hover:text-brand-600 hover:bg-brand-50 transition border border-transparent hover:border-brand-100">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
+                      <PencilIcon className="w-4 h-4" />
                     </button>
                     <button onClick={() => delAlarm(r._id)}
                       className="p-2 rounded-xl text-gray-700 hover:text-red-500 hover:bg-red-50 transition border border-transparent hover:border-red-100">

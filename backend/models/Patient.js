@@ -1,4 +1,3 @@
-// Patient model - stores patient account and medical data
 const mongoose = require("mongoose");
 
 const patientSchema = new mongoose.Schema(

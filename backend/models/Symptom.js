@@ -1,4 +1,3 @@
-// Symptom model - patient-reported symptoms with type, intensity and date
 const mongoose = require("mongoose");
 
 const symptomSchema = new mongoose.Schema(

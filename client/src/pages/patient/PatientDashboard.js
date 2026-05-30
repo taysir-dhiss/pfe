@@ -1,20 +1,17 @@
-// Tableau de bord patient — affiche le profil, les rendez-vous, les accès rapides et l'historique des conversations CalmCare
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { ActivityIcon, CalendarIcon, BookOpenIcon, ClipboardListIcon, PencilIcon } from "../../components/Icons";
 
-// Libellés lisibles pour chaque type de session chatbot
 const SESSION_TYPE_LABELS = {
   analyseSymptome: "Analyse de symptômes",
   general_support: "Consultation CalmCare",
   poserQuest:      "Questions médicales",
 };
 
-// Retourne un titre lisible pour une session selon son type
 function sessionTitle(s) { return SESSION_TYPE_LABELS[s.type] || "Conversation"; }
 
-// Formate la date d'une session en texte relatif (Aujourd'hui / Hier / date)
 function formatSessionDate(dateStr) {
   const d    = new Date(dateStr);
   const diff = Math.floor((Date.now() - d) / 86400000);
@@ -24,30 +21,28 @@ function formatSessionDate(dateStr) {
   return `${d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}, ${time}`;
 }
 
-// Options de stade disponibles pour l'édition du profil
 const STADES = ["Stade I", "Stade II", "Stade III", "Stade IV"];
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
-  const [profile, setProfile]       = useState(null);    // Données du profil patient
-  const [appointments, setAppoints] = useState([]);      // Liste de tous les rendez-vous
-  const [sessions, setSessions]     = useState([]);      // Historique des sessions chatbot
-  const [loading, setLoading]       = useState(true);    // Indicateur de chargement initial
-  const [editMode, setEditMode]     = useState(false);   // Mode édition du profil
-  const [form, setForm]             = useState({});      // État du formulaire d'édition du profil
-  const [msg, setMsg]               = useState({ text: "", type: "" }); // Message de succès ou d'erreur
-  const [copiedId, setCopiedId]     = useState(null);    // ID de la session dont le lien vient d'être copié
-  const [deletingId, setDeletingId] = useState(null);   // ID de la session en cours de suppression
+  const [profile, setProfile]       = useState(null);
+  const [appointments, setAppoints] = useState([]);
+  const [sessions, setSessions]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [editMode, setEditMode]     = useState(false);
+  const [form, setForm]             = useState({});
+  const [msg, setMsg]               = useState({ text: "", type: "" });
+  const [copiedId, setCopiedId]     = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  // Chargement simultané du profil, des rendez-vous et des sessions au montage du composant
   useEffect(() => {
     Promise.all([
       api.get("/patients/profile"),
       api.get("/appointments"),
-      api.get("/chat/sessions?all=true"), // ?all=true pour inclure les sessions fermées
+      api.get("/chat/sessions?all=true"),
     ]).then(([pRes, aRes, sRes]) => {
       setProfile(pRes.data);
-      setForm(pRes.data);               // Pré-remplit le formulaire avec les données actuelles
+      setForm(pRes.data);
       setAppoints(aRes.data || []);
       setSessions(sRes.data || []);
     }).catch(() => {
@@ -55,9 +50,8 @@ export default function PatientDashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  // Supprime une session chatbot et la retire de la liste locale
   const handleDeleteSession = async (e, sid) => {
-    e.stopPropagation(); // Empêche la navigation vers la session lors du clic sur "Supprimer"
+    e.stopPropagation();
     setDeletingId(sid);
     try {
       await api.delete(`/chat/sessions/${sid}`);
@@ -66,7 +60,6 @@ export default function PatientDashboard() {
     finally { setDeletingId(null); }
   };
 
-  // Génère un lien de partage public et le copie dans le presse-papiers
   const handleShareSession = async (e, sid) => {
     e.stopPropagation();
     try {
@@ -74,11 +67,10 @@ export default function PatientDashboard() {
       const url = `${window.location.origin}/share/${data.shareToken}`;
       await navigator.clipboard.writeText(url);
       setCopiedId(sid);
-      setTimeout(() => setCopiedId(null), 2000); // Réinitialise l'état "Copié!" après 2 secondes
+      setTimeout(() => setCopiedId(null), 2000);
     } catch { setMsg({ text: "Impossible de générer le lien.", type: "error" }); }
   };
 
-  // Sauvegarde les modifications du profil (nom, stade du cancer, antécédents)
   const handleSave = async e => {
     e.preventDefault();
     try {
@@ -90,15 +82,14 @@ export default function PatientDashboard() {
     }
   };
 
-  // Filtre les rendez-vous futurs et trouve le prochain
   const upcoming = appointments.filter(a => new Date(a.date) > new Date());
   const nextAppt = [...upcoming].sort((a, b) => new Date(a.date) - new Date(b.date))[0];
 
   const quickLinks = [
-    { to: "/chatbot",         icon: "🩺", label: "CalmCare",        sub: "Suivi quotidien",            color: "from-pink-50 to-rose-50",     border: "border-pink-200",   text: "text-pink-600"   },
-    { to: "/appointments",    icon: "📅", label: "Rendez-vous",      sub: `${upcoming.length} à venir`, color: "from-teal-50 to-emerald-50",  border: "border-teal-200",   text: "text-teal-600"   },
-    { to: "/content",         icon: "📖", label: "Contenu médical",  sub: "12 articles",                color: "from-blue-50 to-indigo-50",   border: "border-blue-200",   text: "text-blue-600"   },
-    { to: "/recommendations", icon: "📋", label: "Recommandations",  sub: "Personnalisées",             color: "from-amber-50 to-yellow-50",  border: "border-amber-200",  text: "text-amber-600"  },
+    { to: "/chatbot",         Icon: ActivityIcon,      label: "CalmCare",        sub: "Suivi quotidien",            color: "from-pink-50 to-rose-50",     border: "border-pink-200",   text: "text-pink-600"   },
+    { to: "/appointments",    Icon: CalendarIcon,      label: "Rendez-vous",      sub: `${upcoming.length} à venir`, color: "from-teal-50 to-emerald-50",  border: "border-teal-200",   text: "text-teal-600"   },
+    { to: "/content",         Icon: BookOpenIcon,      label: "BibMed",           sub: "",                           color: "from-blue-50 to-indigo-50",   border: "border-blue-200",   text: "text-blue-600"   },
+    { to: "/recommendations", Icon: ClipboardListIcon, label: "Recommandations",  sub: "Personnalisées",             color: "from-amber-50 to-yellow-50",  border: "border-amber-200",  text: "text-amber-600"  },
   ];
 
   if (loading) return <Spinner />;
@@ -106,7 +97,6 @@ export default function PatientDashboard() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in">
 
-      {/* ── Hero Banner ───────────────────────────────────────────────────── */}
       <div className="hero-banner rounded-3xl mb-6 overflow-hidden" style={{
         backgroundImage: `url(${process.env.PUBLIC_URL}/images/Rose.png)`,
         backgroundSize: 'cover',
@@ -114,9 +104,7 @@ export default function PatientDashboard() {
       }}>
         <div className="relative z-10 flex flex-col md:flex-row items-center">
 
-          {/* Left content */}
           <div className="flex-1 p-8 md:p-10 text-white">
-            {/* Mini logo */}
             <div className="flex items-center gap-2 mb-4">
               <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`}
                 alt="" className="w-8 h-8 object-contain drop-shadow" />
@@ -136,7 +124,6 @@ export default function PatientDashboard() {
 
           </div>
 
-          {/* Right — ribbon card */}
           <div className="flex-shrink-0 p-6 md:p-10 flex flex-col items-center">
             <div className="flex flex-col items-center">
               <img src={`${process.env.PUBLIC_URL}/images/ribonTN.png`}
@@ -150,14 +137,11 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* ── Stat cards ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 mb-8">
 
         <div className="card py-5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+            <CalendarIcon className="w-5 h-5 text-teal-600" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-2xl font-bold text-gray-800">{upcoming.length}</p>
@@ -170,7 +154,6 @@ export default function PatientDashboard() {
           )}
         </div>
 
-
       </div>
 
       {msg.text && (
@@ -181,7 +164,6 @@ export default function PatientDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Profile card ──────────────────────────────────────────────── */}
         <div className="card lg:col-span-1 animate-float" style={{ animationDelay: "0.1s" }}>
           <div className="section-header">
             <h2 className="text-lg font-semibold text-gray-800">Mon profil</h2>
@@ -210,8 +192,9 @@ export default function PatientDashboard() {
                   </div>
                 )}
               </div>
-              <button className="btn-secondary w-full mt-5 text-sm" onClick={() => setEditMode(true)}>
-                ✏️ Modifier le profil
+              <button className="btn-secondary w-full mt-5 text-sm flex items-center justify-center gap-1.5" onClick={() => setEditMode(true)}>
+                <PencilIcon className="w-4 h-4" />
+                Modifier le profil
               </button>
             </>
           ) : (
@@ -243,18 +226,17 @@ export default function PatientDashboard() {
           )}
         </div>
 
-        {/* ── Quick links ───────────────────────────────────────────────── */}
         <div className="lg:col-span-2 lg:col-start-auto">
           <div className="section-header mb-5">
             <h2 className="text-lg font-semibold text-gray-800">Accès rapide</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {quickLinks.map(({ to, icon, label, sub, color, border, text }, i) => (
+            {quickLinks.map(({ to, Icon, label, sub, color, border, text }, i) => (
               <Link key={label} to={to}
                 style={{ animationDelay: `${i * 0.25}s` }}
                 className={`animate-float bg-gradient-to-br ${color} border ${border} rounded-2xl py-7 px-4 flex flex-col items-center text-center gap-3 shadow-card hover:shadow-card-hover transition-shadow duration-300 group`}>
-                <div className="w-14 h-14 rounded-2xl bg-white/80 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform duration-200">
-                  {icon}
+                <div className="w-14 h-14 rounded-2xl bg-white/80 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200">
+                  <Icon className={`w-7 h-7 ${text}`} />
                 </div>
                 <div>
                   <p className={`font-semibold text-sm ${text}`}>{label}</p>
@@ -266,7 +248,6 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* ── Conversations récentes ────────────────────────────────────────── */}
       <div className="card mt-6">
         <div className="section-header mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -296,7 +277,6 @@ export default function PatientDashboard() {
                   className="group flex items-center gap-3 px-4 py-3 rounded-2xl border border-gray-100 hover:border-pink-200 hover:bg-pink-50/40 transition-all duration-150 cursor-pointer"
                   onClick={() => navigate("/chatbot", { state: { sessionId: s._id } })}>
 
-                  {/* Icon */}
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ background: "linear-gradient(135deg,#fce7f3,#f9a8d4)" }}>
                     <svg className="w-4 h-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -304,13 +284,11 @@ export default function PatientDashboard() {
                     </svg>
                   </div>
 
-                  {/* Title + date */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-800 truncate">{sessionTitle(s)}</p>
                     <p className="text-xs text-gray-700 mt-0.5">{formatSessionDate(s.dateDebut)}</p>
                   </div>
 
-                  {/* Action buttons — appear on hover */}
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     <button
                       onClick={e => { e.stopPropagation(); navigate("/chatbot", { state: { sessionId: s._id } }); }}

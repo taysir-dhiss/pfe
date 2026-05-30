@@ -1,4 +1,3 @@
-// Verifies JWT token and attaches decoded user (id, role) to req.user
 const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {

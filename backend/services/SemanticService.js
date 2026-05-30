@@ -1,18 +1,3 @@
-/**
- * SemanticService — cosine similarity against the patient's stored recommendations.
- *
- * Flow per message:
- *   1. generateEmbedding(userMessage)            → 1 OpenAI API call
- *   2. Load patient recommendations with embeddings  → 1 DB query
- *   3. cosineSimilarity(queryVec, recVec)        → pure math, 0 API calls
- *   4. Return tier + matching context
- *
- * Tiers:
- *   "high"   (≥ 0.82) → strong semantic match → inject as primary context
- *   "medium" (≥ 0.62) → partial match → inject as hint + flag for consultation
- *   "low"    (<  0.62) → no useful match → normal OpenAI flow
- *   "none"            → no recommendations with embeddings yet
- */
 const OpenAI         = require("openai");
 const Recommendation = require("../models/Recommendation");
 
@@ -30,7 +15,6 @@ function getOpenAI() {
   return _openai;
 }
 
-// ── Cosine similarity (pure math) ─────────────────────────────────────────────
 function cosineSimilarity(a, b) {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -42,7 +26,6 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-// ── Generate one embedding vector ─────────────────────────────────────────────
 async function generateEmbedding(text) {
   const resp = await getOpenAI().embeddings.create({
     model: EMBEDDING_MODEL,
@@ -51,23 +34,9 @@ async function generateEmbedding(text) {
   return resp.data[0].embedding;
 }
 
-// ── Find semantically similar recommendations ─────────────────────────────────
-/**
- * Compares the user message against the patient's stored recommendations.
- * Returns the tier, best-matching context text, and top score.
- *
- * @param {string} userMessage
- * @param {string|ObjectId} patientId
- * @returns {Promise<{
- *   tier:    "high"|"medium"|"low"|"none",
- *   context: string|null,
- *   score:   number
- * }>}
- */
 async function findSemanticContext(userMessage, patientId) {
   const queryEmbedding = await generateEmbedding(userMessage);
 
-  // Only load recommendations that already have a stored embedding
   const recs = await Recommendation.find({
     patientId,
     "embedding.0": { $exists: true },
@@ -80,7 +49,6 @@ async function findSemanticContext(userMessage, patientId) {
     return { tier: "none", context: null, score: 0 };
   }
 
-  // Score every candidate
   const scored = recs
     .map((r) => ({
       contenu:       r.contenu,

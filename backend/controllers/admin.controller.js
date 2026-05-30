@@ -1,11 +1,8 @@
-// CRUD operations on Admin accounts + patient management + stats
 const Admin = require("../models/Admin");
 const Patient = require("../models/Patient");
 const Appointment = require("../models/Appointment");
 const Symptom = require("../models/Symptom");
 const bcrypt = require("bcryptjs");
-
-// ─── Admin profile ────────────────────────────────────────────────────────────
 
 exports.getMyProfile = async (req, res) => {
   try {
@@ -55,8 +52,6 @@ exports.changeMyPassword = async (req, res) => {
   }
 };
 
-// ─── Admin CRUD (manage all admins) ──────────────────────────────────────────
-
 exports.getAllAdmins = async (req, res) => {
   try {
     const admins = await Admin.find().select("-motDePasse").sort({ createdAt: -1 });
@@ -100,8 +95,6 @@ exports.deleteAdmin = async (req, res) => {
   }
 };
 
-// ─── Patient management (admin perspective) ──────────────────────────────────
-
 exports.getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find().select("-motDePasse").sort({ createdAt: -1 });
@@ -144,8 +137,6 @@ exports.deletePatient = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
-
-// ─── Stats ────────────────────────────────────────────────────────────────────
 
 exports.getStats = async (req, res) => {
   try {

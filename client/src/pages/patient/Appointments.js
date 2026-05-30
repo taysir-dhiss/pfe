@@ -1,16 +1,11 @@
-// Page de gestion des rendez-vous médicaux
-// La patiente peut créer, modifier et supprimer ses rendez-vous.
-// Un rappel automatique est envoyé 4h avant chaque rendez-vous.
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { CalendarIcon, ClockIcon, CheckCircleIcon } from "../../components/Icons";
 
-// Types de rendez-vous disponibles dans le formulaire
 const TYPES = ["Consultation", "Traitement", "Suivi", "Urgence"];
-// Valeurs par défaut du formulaire vide
 const blankForm = { date: "", medecin: "", type: "Consultation" };
 
-// Convertit une date UTC en chaîne locale au format datetime-local (pour l'input HTML)
 const toLocal = d => {
   if (!d) return "";
   const dt = new Date(d);
@@ -18,17 +13,15 @@ const toLocal = d => {
   return dt.toISOString().slice(0, 16);
 };
 
-// Vérifie si un rendez-vous est passé
 const isPast = a => new Date(a.date) < new Date();
 
 export default function Appointments() {
-  const [appointments, setAppointments] = useState([]); // Liste des rendez-vous triée par date
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState(blankForm);    // État du formulaire (création ou modification)
-  const [editing, setEditing] = useState(null);         // ID du rendez-vous en cours de modification (null = création)
-  const [msg, setMsg]         = useState({ text: "", type: "" }); // Message de retour (succès / erreur)
+  const [form, setForm]       = useState(blankForm);
+  const [editing, setEditing] = useState(null);
+  const [msg, setMsg]         = useState({ text: "", type: "" });
 
-  // Charge la liste des rendez-vous depuis l'API
   const load = () =>
     api.get("/appointments")
       .then(({ data }) => setAppointments(data))
@@ -36,22 +29,19 @@ export default function Appointments() {
 
   useEffect(() => { load(); }, []);
 
-  // Gère la soumission du formulaire : création ou mise à jour selon editing
   const handleSubmit = async e => {
     e.preventDefault();
     setMsg({ text: "", type: "" });
     try {
       if (editing) {
-        // Mise à jour d'un rendez-vous existant
         const { data } = await api.put(`/appointments/${editing}`, form);
         setAppointments(prev => prev.map(a => a._id === editing ? data : a));
         setEditing(null);
         setMsg({ text: "Rendez-vous mis à jour.", type: "success" });
       } else {
-        // Création d'un nouveau rendez-vous
         await api.post("/appointments", form);
         setMsg({ text: "Rendez-vous planifié. Vous recevrez un rappel 4h avant.", type: "success" });
-        load(); // Recharge pour avoir les données à jour
+        load();
       }
       setForm(blankForm);
     } catch (err) {
@@ -59,15 +49,13 @@ export default function Appointments() {
     }
   };
 
-  // Pré-remplit le formulaire avec les données du rendez-vous à modifier
   const startEdit = a => {
     setEditing(a._id);
     setForm({ date: toLocal(a.date), medecin: a.medecin || "", type: a.type || "Consultation" });
     setMsg({ text: "", type: "" });
-    window.scrollTo({ top: 0, behavior: "smooth" }); // Remonte en haut pour voir le formulaire
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Annule le mode édition et réinitialise le formulaire
   const cancelEdit = () => { setEditing(null); setForm(blankForm); setMsg({ text: "", type: "" }); };
 
   const handleDelete = async id => {
@@ -75,7 +63,7 @@ export default function Appointments() {
     try {
       await api.delete(`/appointments/${id}`);
       setAppointments(prev => prev.filter(a => a._id !== id));
-    } catch { /* silent */ }
+    } catch {}
   };
 
   if (loading) return <Spinner />;
@@ -85,11 +73,13 @@ export default function Appointments() {
 
   return (
     <div className="page">
-      <h1 className="page-title">📅 Mes Rendez-vous</h1>
+      <h1 className="page-title flex items-center gap-2">
+        <CalendarIcon className="w-6 h-6 text-brand-600" />
+        Mes Rendez-vous
+      </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ── Form ──────────────────────────────────────────────────────── */}
         <div className="card animate-slide-up">
           <div className="section-header">
             <h2 className="text-lg font-semibold text-gray-800">
@@ -130,19 +120,16 @@ export default function Appointments() {
             </div>
           </form>
 
-          {/* Reminder info */}
           <div className="mt-5 p-3 bg-brand-50 rounded-xl border border-brand-100 flex items-start gap-2">
-            <span className="text-base flex-shrink-0 mt-0.5">⏰</span>
+            <ClockIcon className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-brand-600 leading-relaxed">
               Un rappel automatique vous sera envoyé <strong>4 heures</strong> avant chaque rendez-vous.
             </p>
           </div>
         </div>
 
-        {/* ── List ──────────────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Upcoming */}
           <div>
             <div className="section-header mb-4">
               <h3 className="font-semibold text-gray-700">
@@ -154,7 +141,9 @@ export default function Appointments() {
             </div>
             {upcoming.length === 0 ? (
               <div className="card text-center py-12">
-                <p className="text-4xl mb-3">📆</p>
+                <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-3">
+                  <CalendarIcon className="w-8 h-8 text-brand-300" />
+                </div>
                 <p className="text-gray-700 text-sm">Aucun rendez-vous à venir.</p>
               </div>
             ) : (
@@ -175,7 +164,9 @@ export default function Appointments() {
                             {new Date(a.date).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}
                           </p>
                           <span className={`inline-flex items-center gap-1 mt-1 text-xs font-medium ${a.reminderSent ? "text-green-500" : "text-brand-400"}`}>
-                            {a.reminderSent ? "✓ Rappel envoyé" : "⏰ Rappel dans 4h"}
+                            {a.reminderSent
+                              ? <><CheckCircleIcon className="w-3.5 h-3.5" /> Rappel envoyé</>
+                              : <><ClockIcon className="w-3.5 h-3.5" /> Rappel dans 4h</>}
                           </span>
                         </div>
                       </div>
@@ -200,7 +191,6 @@ export default function Appointments() {
             )}
           </div>
 
-          {/* Past */}
           {past.length > 0 && (
             <div>
               <div className="section-header mb-4">

@@ -1,4 +1,3 @@
-// Patient-only routes: own profile management
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth.middleware");

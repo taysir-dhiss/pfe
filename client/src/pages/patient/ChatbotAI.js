@@ -1,21 +1,14 @@
-// Page CalmCare (ChatbotAI) — interface principale du chatbot médical IA
-// Fonctionnalités : espaces de bien-être, sélection du type de session, chat avec Sophie (IA),
-//                  analyse de symptômes, partage de conversation
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { LockClosedIcon, WindIcon } from "../../components/Icons";
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
-
-// Phases de l'exercice de respiration guidée (4-2-4 = inspire-retiens-expire)
 const BREATH_PHASES = [
   { label: "Inspirez",  seconds: 4, color: "text-blue-500"   },
   { label: "Retenez",   seconds: 2, color: "text-violet-500" },
   { label: "Expirez",   seconds: 4, color: "text-teal-500"   },
 ];
-
-// removed SESSION_LABELS — replaced by sessionTitle() helper
 
 const QUOTES = [
   "Vous êtes plus forte que vous ne le pensez. Un jour à la fois.",
@@ -43,8 +36,6 @@ function severityLabel(level) {
   return "sévère";
 }
 
-// ─── SVG icons for spaces ─────────────────────────────────────────────────────
-
 const IconHeart = () => (
   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -70,17 +61,16 @@ const IconCommunity = () => (
 
 const SPACES = [
   { to: "/recommendations", Icon: IconHeart,       label: "Recommandations", iconColor: "text-pink-500",   iconBg: "bg-pink-100"   },
-  { to: "/community",       Icon: IconCommunity,   label: "Communauté", iconColor: "text-teal-500",   iconBg: "bg-teal-100"   },
-  { to: "/content",         Icon: IconPill,        label: "Contenu médical", iconColor: "text-violet-500", iconBg: "bg-violet-100" },
-  { to: "/appointments",    Icon: IconCalendar,    label: "RDV",        iconColor: "text-blue-500",   iconBg: "bg-blue-100"   },
+  { to: "/community",       Icon: IconCommunity,   label: "Communauté",      iconColor: "text-teal-500",   iconBg: "bg-teal-100"   },
+  { to: "/content",         Icon: IconPill,        label: "BibMed",          iconColor: "text-violet-500", iconBg: "bg-violet-100" },
+  { to: "/appointments",    Icon: IconCalendar,    label: "RDV",             iconColor: "text-blue-500",   iconBg: "bg-blue-100"   },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
+const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 function parseMessage(contenu) {
-  const idx = contenu.indexOf("⚕️");
+  const idx = contenu.indexOf(DISCLAIMER_MARKER);
   if (idx === -1) return { body: contenu, disclaimer: null };
-  return { body: contenu.slice(0, idx).trimEnd(), disclaimer: contenu.slice(idx).trim() };
+  return { body: contenu.slice(0, idx).trimEnd(), disclaimer: contenu.slice(idx + DISCLAIMER_MARKER.length).trim() };
 }
 
 const SESSION_TYPE_LABELS = {
@@ -101,8 +91,6 @@ function formatSessionDate(dateStr) {
   if (diff === 1) return `Hier, ${time}`;
   return `${d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}, ${time}`;
 }
-
-// ─── Minimal girl icon (no facial features) ──────────────────────────────────
 
 function Orb({ size = "md", float = false }) {
   const sz = {
@@ -144,29 +132,23 @@ function Orb({ size = "md", float = false }) {
           </linearGradient>
         </defs>
 
-        {/* ── Hair silhouette ── */}
         <ellipse cx="50" cy="34" rx="23" ry="20" fill={`url(#hair-${size})`} />
         <ellipse cx="27" cy="50" rx="7"  ry="16" fill={`url(#hair-${size})`} />
         <ellipse cx="73" cy="50" rx="7"  ry="16" fill={`url(#hair-${size})`} />
 
-        {/* ── Blank face (no features) ── */}
         <ellipse cx="50" cy="51" rx="19" ry="21" fill={`url(#face-${size})`} />
 
-        {/* ── Shoulders / body ── */}
         <path
           d="M18 100 Q22 76 50 70 Q78 76 82 100Z"
           fill={`url(#body-${size})`}
           opacity="0.88"
         />
 
-        {/* ── Soft inner glow on background ── */}
         <circle cx="50" cy="50" r="50" fill="white" opacity="0.04" />
       </svg>
     </div>
   );
 }
-
-// ─── Typing indicator ─────────────────────────────────────────────────────────
 
 function TypingIndicator() {
   return (
@@ -183,8 +165,6 @@ function TypingIndicator() {
     </div>
   );
 }
-
-// ─── Message bubbles ──────────────────────────────────────────────────────────
 
 function BotBubble({ contenu, animate }) {
   const { body, disclaimer } = parseMessage(contenu);
@@ -214,8 +194,6 @@ function UserBubble({ contenu, animate }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 export default function ChatbotAI() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -231,8 +209,8 @@ export default function ChatbotAI() {
   const [breathPhase, setBreathPhase] = useState(0);
   const [error, setError]             = useState("");
   const [deletingId, setDeletingId]   = useState(null);
-  const [view, setView]               = useState("landing"); // "landing" | "declare" | "chat"
-  const [sessionSymptoms, setSessionSymptoms] = useState([]); // symptoms declared for current session
+  const [view, setView]               = useState("landing");
+  const [sessionSymptoms, setSessionSymptoms] = useState([]);
   const [pendingSymptoms, setPending] = useState([]);
   const [newType, setNewType]         = useState(SYMPTOM_TYPES[0]);
   const [newLevel, setNewLevel]       = useState(5);
@@ -241,14 +219,12 @@ export default function ChatbotAI() {
   const quote          = QUOTES[new Date().getDate() % QUOTES.length];
   const hasUserMessage = messages.some(m => m.role === "patient");
 
-  // Breathing cycle
   useEffect(() => {
     const { seconds } = BREATH_PHASES[breathPhase];
     const t = setTimeout(() => setBreathPhase(p => (p + 1) % 3), seconds * 1000);
     return () => clearTimeout(t);
   }, [breathPhase]);
 
-  // On mount: fetch session history only — no auto-session
   useEffect(() => {
     api.get("/chat/sessions?all=true")
       .then(res => setSessions(res.data || []))
@@ -360,7 +336,6 @@ export default function ChatbotAI() {
   const phase = BREATH_PHASES[breathPhase];
   const sliderPct = ((newLevel - 1) / 9) * 100;
 
-  // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <>
     <style>{`
@@ -382,10 +357,8 @@ export default function ChatbotAI() {
     `}</style>
     <div className="flex overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
 
-      {/* ══════════════════ LEFT SIDEBAR ══════════════════════════════════ */}
       <aside className="w-[272px] flex-shrink-0 flex flex-col gap-5 p-5 overflow-y-auto border-r border-gray-100 bg-white/80 backdrop-blur-md">
 
-        {/* Logo row */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-white shadow-md border border-pink-100 flex items-center justify-center flex-shrink-0">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -395,7 +368,6 @@ export default function ChatbotAI() {
               </svg>
             </div>
           </div>
-          {/* green online dot */}
           <div className="relative -ml-4 -mt-6">
             <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm" />
           </div>
@@ -405,7 +377,6 @@ export default function ChatbotAI() {
           </div>
         </div>
 
-        {/* New conversation button */}
         <button onClick={() => startNewSession()}
           className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-semibold text-sm text-white shadow-md transition hover:opacity-90 hover:shadow-lg active:scale-95"
           style={{ background: "linear-gradient(135deg,#f472b6 0%,#ec4899 50%,#db2777 100%)" }}>
@@ -415,7 +386,6 @@ export default function ChatbotAI() {
           Nouvelle conversation
         </button>
 
-        {/* Spaces */}
         <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
           <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest mb-3">Vos espaces</p>
           <div className="grid grid-cols-2 gap-2.5">
@@ -431,7 +401,6 @@ export default function ChatbotAI() {
           </div>
         </div>
 
-        {/* Conversations */}
         {sessions.length > 0 && (
           <div className="flex-1 min-h-0">
             <div className="flex items-center justify-between mb-2.5">
@@ -450,7 +419,6 @@ export default function ChatbotAI() {
                       isActive ? "bg-pink-100 border border-pink-200" : "hover:bg-gray-50"
                     }`}>
 
-                    {/* Main clickable area */}
                     <button onClick={() => loadSession(s._id)}
                       className="flex-1 min-w-0 text-left px-3 py-2.5">
                       <p className={`text-sm truncate ${isActive ? "font-semibold text-brand-700" : "font-medium text-gray-700"}`}>
@@ -459,7 +427,6 @@ export default function ChatbotAI() {
                       <p className="text-[11px] text-gray-700 mt-0.5">{formatSessionDate(s.dateDebut)}</p>
                     </button>
 
-                    {/* Delete button — visible on group hover */}
                     <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button onClick={(e) => handleDeleteSession(e, s._id)}
                         disabled={isDeleting}
@@ -479,10 +446,8 @@ export default function ChatbotAI() {
         )}
       </aside>
 
-      {/* ══════════════════ CENTER PANEL ══════════════════════════════════ */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white/40 backdrop-blur-sm">
 
-        {/* Header */}
         <div className="flex-shrink-0 flex items-center gap-4 px-6 py-3.5 bg-white/80 backdrop-blur-md border-b border-gray-100">
           <Orb size="md" />
           <div className="flex-1 min-w-0">
@@ -493,15 +458,16 @@ export default function ChatbotAI() {
                 En ligne
               </span>
             </div>
-            <p className="text-[11px] text-gray-700">🔒 Conversations chiffrées · Confidentialité médicale</p>
+            <div className="flex items-center gap-1 text-[11px] text-gray-700">
+              <LockClosedIcon className="w-3 h-3 flex-shrink-0" />
+              <span>Conversations chiffrées · Confidentialité médicale</span>
+            </div>
           </div>
         </div>
 
 
-        {/* Messages scroll area */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
 
-          {/* Landing choice */}
           {view === "landing" && (
             <div className="flex flex-col items-center justify-center min-h-full py-6 animate-fade-in select-none">
               <Orb size="xl" float />
@@ -519,10 +485,8 @@ export default function ChatbotAI() {
                 pour l'accompagnement oncologique et je ne vous jugerai jamais.
               </p>
 
-              {/* Choice cards */}
               <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
 
-                {/* Option 1 — Declare symptom */}
                 <button onClick={() => setView("declare")}
                   className="flex-1 flex flex-col items-center gap-3 p-6 bg-white border-2 border-pink-200 rounded-2xl shadow-sm hover:shadow-md hover:border-pink-400 hover:-translate-y-1 transition-all duration-200 text-center group">
                   <div className="w-14 h-14 rounded-2xl bg-pink-100 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -540,7 +504,6 @@ export default function ChatbotAI() {
                   </span>
                 </button>
 
-                {/* Option 2 — Start conversation */}
                 <button onClick={() => startNewSession()}
                   className="flex-1 flex flex-col items-center gap-3 p-6 bg-white border-2 border-violet-200 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 hover:-translate-y-1 transition-all duration-200 text-center group">
                   <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -561,7 +524,6 @@ export default function ChatbotAI() {
             </div>
           )}
 
-          {/* Declare view — inline symptom form */}
           {view === "declare" && (
             <div className="flex flex-col items-center justify-center min-h-full py-6 animate-fade-in">
               <div className="w-full max-w-md">
@@ -579,7 +541,6 @@ export default function ChatbotAI() {
                   Sophie analysera vos symptômes et vous proposera un accompagnement personnalisé.
                 </p>
 
-                {/* Form */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4">
                   <div className="flex gap-3 mb-5">
                     <select value={newType} onChange={e => setNewType(e.target.value)}
@@ -594,7 +555,6 @@ export default function ChatbotAI() {
                   </div>
 
                   <div>
-                    {/* Header row */}
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-[10px] font-bold text-gray-700 uppercase tracking-widest">Intensité</span>
                       <span className="text-[11px] font-bold px-3 py-1 rounded-full transition-colors"
@@ -606,7 +566,6 @@ export default function ChatbotAI() {
                       </span>
                     </div>
 
-                    {/* Gradient-filled track */}
                     <input
                       type="range" min={1} max={10} value={newLevel}
                       onChange={e => setNewLevel(+e.target.value)}
@@ -620,7 +579,6 @@ export default function ChatbotAI() {
                       }}
                     />
 
-                    {/* Numbered ticks */}
                     <div className="flex justify-between mt-2 px-0.5">
                       {[1,2,3,4,5,6,7,8,9,10].map(n => (
                         <span key={n}
@@ -630,7 +588,6 @@ export default function ChatbotAI() {
                       ))}
                     </div>
 
-                    {/* Labels */}
                     <div className="flex justify-between mt-0.5 px-0.5">
                       <span className="text-[10px] text-gray-700">Faible</span>
                       <span className="text-[10px] text-gray-700">Modérée</span>
@@ -639,7 +596,6 @@ export default function ChatbotAI() {
                   </div>
                 </div>
 
-                {/* Pending list */}
                 {pendingSymptoms.length > 0 && (
                   <div className="space-y-2 mb-4">
                     {pendingSymptoms.map(s => {
@@ -683,7 +639,6 @@ export default function ChatbotAI() {
             </div>
           )}
 
-          {/* Messages — only when a session is active */}
           {view === "chat" && sessionId && messages.map(m =>
             m.role === "patient"
               ? <UserBubble key={m._id} contenu={m.contenu} animate={m.isNew} />
@@ -692,7 +647,6 @@ export default function ChatbotAI() {
 
           {view === "chat" && sessionId && typing && <TypingIndicator />}
 
-          {/* Suggestion chips */}
           {view === "chat" && suggestions.length > 0 && !typing && (
             <div className="mt-3 mb-4 animate-fade-in">
               <p className="text-[10px] font-bold text-gray-700 uppercase tracking-widest mb-2.5">
@@ -700,7 +654,6 @@ export default function ChatbotAI() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s, i) => {
-                  const icons = ["💗", "🌙", "💬", "🌿", "🤒"];
                   const colors = [
                     "border-pink-200 text-pink-700 bg-pink-50 hover:bg-pink-100",
                     "border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100",
@@ -708,8 +661,7 @@ export default function ChatbotAI() {
                   ];
                   return (
                     <button key={i} onClick={() => sendMessage(s)}
-                      className={`flex items-center gap-1.5 text-xs border rounded-full px-3.5 py-2 font-medium shadow-sm transition ${colors[i % colors.length]}`}>
-                      <span>{icons[i % icons.length]}</span>
+                      className={`text-xs border rounded-full px-3.5 py-2 font-medium shadow-sm transition ${colors[i % colors.length]}`}>
                       {s}
                     </button>
                   );
@@ -727,7 +679,6 @@ export default function ChatbotAI() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input bar — hidden on landing */}
         {sessionId && <div className="flex-shrink-0 px-6 py-4 bg-white/80 backdrop-blur-md border-t border-gray-100">
           <div className="flex items-end gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-2.5">
             <textarea
@@ -752,15 +703,13 @@ export default function ChatbotAI() {
         </div>}
       </main>
 
-      {/* ══════════════════ RIGHT SIDEBAR ═════════════════════════════════ */}
       <aside className="w-[220px] flex-shrink-0 flex flex-col gap-4 p-4 overflow-y-auto border-l border-gray-100 bg-white/80 backdrop-blur-md">
 
-        {/* Breathing widget */}
         <div className="rounded-2xl p-4 border border-blue-100 bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50">
           <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-[0.12em] mb-3">Pause respiration</p>
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-white border border-indigo-100 shadow-sm flex items-center justify-center text-xl flex-shrink-0">
-              🌬️
+            <div className="w-11 h-11 rounded-full bg-white border border-indigo-100 shadow-sm flex items-center justify-center flex-shrink-0">
+              <WindIcon className="w-5 h-5 text-indigo-500" />
             </div>
             <div>
               <p className={`text-xl font-bold leading-none ${phase.color}`}>{phase.label}</p>
@@ -775,7 +724,6 @@ export default function ChatbotAI() {
           </div>
         </div>
 
-        {/* Recent symptoms */}
         <div className="rounded-2xl p-4 border border-gray-100 bg-white shadow-sm">
           <div className="flex items-baseline justify-between mb-3">
             <p className="text-sm font-bold text-gray-800">Mes symptômes</p>
@@ -814,9 +762,12 @@ export default function ChatbotAI() {
           )}
         </div>
 
-        {/* Daily quote */}
         <div className="rounded-2xl p-4 border border-pink-100 bg-gradient-to-br from-pink-50 to-rose-50 shadow-sm">
-          <div className="text-pink-400 text-base mb-2">✦</div>
+          <div className="w-4 h-4 text-pink-400 mb-2">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">
+              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+            </svg>
+          </div>
           <p className="text-sm font-semibold text-gray-800 leading-snug mb-2">
             "{quote}"
           </p>

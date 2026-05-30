@@ -1,7 +1,5 @@
-// CRUD contenu médical (articles et vidéos) - écriture admin, lecture tous
 const MedicalContent = require("../models/MedicalContent");
 
-// POST /api/content  (admin)
 exports.createContent = async (req, res) => {
   try {
     const { titre, type, contenu, url } = req.body;
@@ -18,7 +16,6 @@ exports.createContent = async (req, res) => {
   }
 };
 
-// GET /api/content  (tous)
 exports.getAllContent = async (req, res) => {
   try {
     const { type } = req.query;
@@ -32,7 +29,6 @@ exports.getAllContent = async (req, res) => {
   }
 };
 
-// GET /api/content/:id  (tous)
 exports.getContentById = async (req, res) => {
   try {
     const content = await MedicalContent.findById(req.params.id).populate("createdBy", "nom");
@@ -43,7 +39,6 @@ exports.getContentById = async (req, res) => {
   }
 };
 
-// PUT /api/content/:id  (admin)
 exports.updateContent = async (req, res) => {
   try {
     const { createdBy, ...data } = req.body;
@@ -58,7 +53,6 @@ exports.updateContent = async (req, res) => {
   }
 };
 
-// DELETE /api/content/:id  (admin)
 exports.deleteContent = async (req, res) => {
   try {
     const content = await MedicalContent.findByIdAndDelete(req.params.id);

@@ -1,4 +1,3 @@
-// ChatbotService - gestion sessions, messages, analyse symptômes via OpenAI (AIProvider)
 const crypto = require("crypto");
 const OpenAI = require("openai");
 const AIAnalysisService = require("../services/AIAnalysisService");
@@ -16,7 +15,6 @@ const DISCLAIMER =
 
 const AI_MODEL = "gpt-4o-mini";
 
-// Lazy initialization — crashes early with a clear message if API key is missing
 let openai = null;
 const getOpenAI = () => {
   if (!openai) {
@@ -28,19 +26,17 @@ const getOpenAI = () => {
   return openai;
 };
 
-// ── Text normalization — strips accents, apostrophes, punctuation ─────────────
 function normalizeText(text) {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")  // é→e, à→a, ç→c …
-    .replace(/['’‘\-]/g, " ") // apostrophes + hyphens → space
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['''\-]/g, " ")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-// ─── Local fallback responses (used ONLY when OpenAI is unavailable) ─────────
 const LOCAL_RESPONSES = [
   {
     category: "douleur",
@@ -302,15 +298,6 @@ ${DISCLAIMER}`
   },
 ];
 
-// ── Symptom category detector — normalized + scored keyword matching ──────────
-/**
- * Detects which medical topic best matches the user message.
- * Scores each LOCAL_RESPONSES entry using normalized text comparison:
- *   3 pts — exact word match or multi-word phrase found
- *   2 pts — user word starts with keyword stem (≥4 chars)
- *   1 pt  — keyword starts with user word (≥4 chars, partial)
- * Returns the highest-scoring entry, or null if nothing matched.
- */
 function detectSymptomCategory(userMessage) {
   const normalized = normalizeText(userMessage);
   const words = normalized.split(/\s+/);
@@ -325,14 +312,13 @@ function detectSymptomCategory(userMessage) {
       if (!nkw) continue;
 
       if (nkw.includes(" ")) {
-        // Multi-word phrase — check presence in the full normalized text
         if (normalized.includes(nkw)) score += 3;
       } else if (words.includes(nkw)) {
-        score += 3; // Exact word match
+        score += 3;
       } else if (nkw.length >= 4 && words.some((w) => w.startsWith(nkw))) {
-        score += 2; // "fatigues" → matches "fatigu" stem
+        score += 2;
       } else if (nkw.length >= 5 && words.some((w) => nkw.startsWith(w) && w.length >= 4)) {
-        score += 1; // "chimioth" → matches "chimio"
+        score += 1;
       }
     }
     if (score > bestScore) {
@@ -344,8 +330,6 @@ function detectSymptomCategory(userMessage) {
   return bestScore > 0 ? bestEntry : null;
 }
 
-// ─── Local preliminary analysis (no OpenAI needed) ───────────────────────────
-
 function generateLocalAnalysis(symptoms) {
   if (!symptoms || symptoms.length === 0) {
     return `Bonjour. Je suis votre assistante médicale IA. Aucun symptôme n'a été renseigné pour cette session.\n\nN'hésitez pas à déclarer vos symptômes afin que je puisse vous accompagner au mieux.\n\n${DISCLAIMER}`;
@@ -354,7 +338,6 @@ function generateLocalAnalysis(symptoms) {
   const maxIntensity = Math.max(...symptoms.map((s) => s.intensite));
   const avgIntensity = (symptoms.reduce((a, s) => a + s.intensite, 0) / symptoms.length).toFixed(1);
 
-  // Severity level
   let niveauTitre, niveauDesc;
   if (maxIntensity >= 8) {
     niveauTitre = "Attention — intensité élevée";
@@ -367,7 +350,6 @@ function generateLocalAnalysis(symptoms) {
     niveauDesc  = "Vos symptômes semblent bien maîtrisés pour le moment. Continuez votre suivi habituel et n'hésitez pas à signaler tout changement.";
   }
 
-  // Symptom lines
   const lines = symptoms
     .map((s) => {
       const label = s.intensite >= 8 ? "sévère" : s.intensite >= 5 ? "modéré" : "léger";
@@ -375,7 +357,6 @@ function generateLocalAnalysis(symptoms) {
     })
     .join("\n");
 
-  // Gentle recommendations based on symptoms present
   const recs = [];
   const types = symptoms.map((s) => s.type.toLowerCase());
   if (types.some((t) => t.includes("douleur")))        recs.push("Discutez de la gestion de la douleur avec votre médecin (antalgiques adaptés, chaleur locale).");
@@ -409,7 +390,6 @@ ${DISCLAIMER}`;
 function localFallbackResponse(userMessage) {
   const match = detectSymptomCategory(userMessage);
   if (match) return match.response;
-  // Generic fallback
   return `Merci pour votre question. Je suis votre assistante médicale spécialisée en oncologie, et je suis là pour vous accompagner.
 
 Pour vous apporter une réponse précise et personnalisée, je vous encourage à :
@@ -422,13 +402,6 @@ Je suis là pour vous aider dans votre parcours de soins.
 ${DISCLAIMER}`;
 }
 
-// ─── AI Classification + Medical Reasoning ───────────────────────────────────
-
-/**
- * classifySymptoms — uses OpenAI to extract symptoms and severity from free text.
- * Falls back to keyword heuristics if OpenAI is unavailable.
- * @returns {{ symptoms: string[], severity: "low"|"moderate"|"high"|"critical", confidence: number }}
- */
 async function classifySymptoms(userMessage, history) {
   const historyContext = history
     .slice(-6)
@@ -459,14 +432,11 @@ Règles de sévérité :
 
   const text = completion.choices[0].message.content;
 
-  // Extract the first {...} block from the response — handles cases where
-  // the model wraps JSON in markdown or adds explanatory text around it
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("No JSON object found in classifier response: " + text.slice(0, 100));
 
   const parsed = JSON.parse(match[0]);
 
-  // Validate shape — reject if required fields are missing
   if (!parsed.severity || typeof parsed.confidence !== "number") {
     throw new Error("Classifier returned invalid shape: " + match[0]);
   }
@@ -478,9 +448,6 @@ Règles de sévérité :
   };
 }
 
-/**
- * generateMedicalResponse — structured clinical response using classification + history.
- */
 async function generateMedicalResponse(userMessage, classification, history, sessionType) {
   const historyContext = history
     .slice(-10)
@@ -496,9 +463,9 @@ async function generateMedicalResponse(userMessage, classification, history, ses
   const { severity, confidence } = classification || {};
 
   const urgencyNote = severity === "critical"
-    ? "\n⚠️ URGENCE DÉTECTÉE : insiste fortement et clairement sur la nécessité de contacter l'équipe médicale IMMÉDIATEMENT. Mentionne explicitement la prise de rendez-vous."
+    ? "\nURGENCE DÉTECTÉE : insiste fortement et clairement sur la nécessité de contacter l'équipe médicale IMMÉDIATEMENT. Mentionne explicitement la prise de rendez-vous."
     : (severity === "high" || confidence < 0.6)
-      ? "\n📋 CONSULTATION RECOMMANDÉE : suggère naturellement et avec empathie de consulter un médecin ou de prendre rendez-vous pour une évaluation plus précise. Ne soit pas alarmant."
+      ? "\nCONSULTATION RECOMMANDÉE : suggère naturellement et avec empathie de consulter un médecin ou de prendre rendez-vous pour une évaluation plus précise. Ne soit pas alarmant."
       : "";
 
   const systemPrompt = `${buildSystemPrompt(sessionType)}${classNote}${urgencyNote}
@@ -524,9 +491,6 @@ Raisonnement clinique structuré à suivre :
   return completion.choices[0].message.content;
 }
 
-// ─── Sessions ─────────────────────────────────────────────────────────────────
-
-// POST /api/chat/sessions
 exports.createSession = async (req, res) => {
   try {
     const { type } = req.body;
@@ -541,8 +505,6 @@ exports.createSession = async (req, res) => {
   }
 };
 
-// GET /api/chat/sessions
-// ?all=true → returns all sessions (history); default → only open sessions
 exports.getMySessions = async (req, res) => {
   try {
     const filter = { patientId: req.user.id };
@@ -554,7 +516,6 @@ exports.getMySessions = async (req, res) => {
   }
 };
 
-// PUT /api/chat/sessions/:id/close
 exports.closeSession = async (req, res) => {
   try {
     const session = await ChatSession.findOneAndUpdate(
@@ -569,11 +530,7 @@ exports.closeSession = async (req, res) => {
   }
 };
 
-// ─── Messages + réponse IA ────────────────────────────────────────────────────
-
-// POST /api/chat/sessions/:id/messages
 exports.sendMessage = async (req, res) => {
-  // Debug context — populated at each step, dumped to console on error
   let _debug = { contenu: null, classification: null, aiResult: null, finalResponse: null };
 
   try {
@@ -583,7 +540,6 @@ exports.sendMessage = async (req, res) => {
     _debug.contenu = contenu;
     console.log("Incoming message:", contenu);
 
-    // ── Category detection (sync, no API call) ────────────────────────────────
     const detectedEntry    = detectSymptomCategory(contenu);
     const detectedCategory = detectedEntry?.category ?? null;
     if (detectedCategory) console.log("Detected category:", detectedCategory);
@@ -592,10 +548,8 @@ exports.sendMessage = async (req, res) => {
     if (!session) return res.status(404).json({ message: "Session introuvable" });
     if (session.datefin) return res.status(400).json({ message: "Session terminée" });
 
-    // Save patient message
     await ChatMessage.create({ sessionId: session._id, contenu, role: "patient" });
 
-    // Fetch conversation history
     const history = await ChatMessage.find({ sessionId: session._id })
       .sort({ dateEnvoi: 1 })
       .limit(20);
@@ -603,7 +557,6 @@ exports.sendMessage = async (req, res) => {
     const sessionId = session._id.toString();
     aiLogger.log("user_input", { sessionId, contentLength: contenu.length, preview: contenu.slice(0, 200) });
 
-    // ── Step 0: Semantic Similarity Lookup ────────────────────────────────────
     let semanticCtx = { tier: "none", context: null, score: 0 };
     try {
       semanticCtx = await SemanticService.findSemanticContext(contenu, req.user.id);
@@ -613,7 +566,6 @@ exports.sendMessage = async (req, res) => {
     }
     console.log("Semantic lookup:", { tier: semanticCtx.tier, score: semanticCtx.score?.toFixed(4) });
 
-    // ── Step 0.5: RAG Retrieval — medical knowledge base ─────────────────────
     let ragChunks = [];
     try {
       ragChunks = await RAGService.retrieveRelevantChunks(contenu, 4);
@@ -626,20 +578,17 @@ exports.sendMessage = async (req, res) => {
       aiLogger.logError("rag_retrieval_failed", err, { sessionId });
     }
 
-    // ── Step 1: AI Symptom Classification ────────────────────────────────────
     let classification;
     try {
       classification = await AIAnalysisService.classifySymptoms(contenu, history);
       aiLogger.log("classification", classification, { sessionId });
     } catch (err) {
       aiLogger.logError("classification_failed", err, { sessionId });
-      // Fallback metadata — pipeline continues with degraded confidence
       classification = { symptoms: [], severity: "moderate", confidence: 0.3 };
     }
     _debug.classification = classification;
     console.log("Classification:", classification);
 
-    // ── Step 2: Safety assessment ─────────────────────────────────────────────
     const needsConsultation =
       semanticCtx.tier === "medium" ||
       ["high", "critical"].includes(classification.severity) ||
@@ -648,7 +597,6 @@ exports.sendMessage = async (req, res) => {
     const safety = AIAnalysisService.applySafetyFilter(classification);
     aiLogger.log("safety_filter", safety, { sessionId });
 
-    // ── Step 3: Conversational response with full memory ──────────────────────
     let finalResponse;
     try {
       finalResponse = await AIAnalysisService.generateConversationalResponse(classification, {
@@ -677,7 +625,6 @@ exports.sendMessage = async (req, res) => {
       preview:            finalResponse.slice(0, 120),
     }, { sessionId });
 
-    // ── Step 5: Metadata enrichment + save ───────────────────────────────────
     const metadata = {
       confidence: classification.confidence,
       severity:   classification.severity,
@@ -717,7 +664,6 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
-// GET /api/chat/sessions/:id/messages
 exports.getMessages = async (req, res) => {
   try {
     const session = await ChatSession.findOne({ _id: req.params.id, patientId: req.user.id });
@@ -730,9 +676,6 @@ exports.getMessages = async (req, res) => {
   }
 };
 
-// ─── Analyse symptômes → recommandations IA ──────────────────────────────────
-
-// POST /api/chat/analyser-symptomes
 exports.analyserSymptomes = async (req, res) => {
   try {
     const patient = await Patient.findById(req.user.id).select("-motDePasse");
@@ -766,7 +709,6 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
         parsed = { recommandations: [{ contenu: completion.choices[0].message.content, niveauPriorite: "modere" }] };
       }
     } catch {
-      // Local fallback recommendations based on declared symptoms
       parsed = {
         recommandations: symptoms.map((s) => ({
           contenu: localFallbackResponse(s.type),
@@ -786,13 +728,12 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
       )
     );
 
-    // Fire-and-forget: compute and store embeddings on each new recommendation
     (async () => {
       for (const rec of saved) {
         try {
           const emb = await SemanticService.generateEmbedding(rec.contenu);
           await Recommendation.findByIdAndUpdate(rec._id, { embedding: emb });
-        } catch { /* ignore — non-blocking */ }
+        } catch {}
       }
     })();
 
@@ -802,7 +743,6 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
   }
 };
 
-// ─── POST /api/chat/initialize ────────────────────────────────────────────────
 exports.initializeWithSymptoms = async (req, res) => {
   try {
     const { symptoms = [] } = req.body;
@@ -813,10 +753,8 @@ exports.initializeWithSymptoms = async (req, res) => {
       dateDebut: new Date(),
     });
 
-    // Generate preliminary analysis locally (always works, no API needed)
     let analysis = generateLocalAnalysis(symptoms);
 
-    // Build symptom-aware suggestions locally
     let suggestions = ["Que signifient ces symptômes ?", "Ces symptômes sont-ils préoccupants ?", "Que puis-je faire pour me soulager ?"];
     if (symptoms.length > 0) {
       const types = symptoms.map((s) => s.type.toLowerCase());
@@ -832,7 +770,6 @@ exports.initializeWithSymptoms = async (req, res) => {
       if (custom.length >= 3) suggestions = custom.slice(0, 3);
     }
 
-    // Try to generate a richer AI analysis via OpenAI
     if (process.env.OPENAI_API_KEY && symptoms.length > 0) {
       try {
         const symptomText = symptoms.map((s) => `${s.type} (intensité: ${s.intensite}/10)`).join(", ");
@@ -855,15 +792,11 @@ Format exact : { "analysis": "...", "suggestions": ["q1", "q2", "q3"] }`
         const parsed = JSON.parse(raw);
         if (parsed.analysis) analysis = parsed.analysis + "\n\n" + DISCLAIMER;
         if (Array.isArray(parsed.suggestions) && parsed.suggestions.length === 3) suggestions = parsed.suggestions;
-      } catch {
-        // Keep local analysis
-      }
+      } catch {}
     }
 
-    // Save analysis as first bot message in the session
     await ChatMessage.create({ sessionId: session._id, contenu: analysis, role: "assistant_ia" });
 
-    // Return both keys: ChatbotAI.js reads `welcome`, Symptoms.js reads `analysis`
     res.json({ session, welcome: analysis, analysis, suggestions });
   } catch (err) {
     console.error("[initialize] Error:", err.message, err.stack?.split("\n")[1]);
@@ -871,7 +804,6 @@ Format exact : { "analysis": "...", "suggestions": ["q1", "q2", "q3"] }`
   }
 };
 
-// ─── DELETE /api/chat/sessions/:id ───────────────────────────────────────────
 exports.deleteSession = async (req, res) => {
   try {
     const session = await ChatSession.findOneAndDelete({ _id: req.params.id, patientId: req.user.id });
@@ -883,7 +815,6 @@ exports.deleteSession = async (req, res) => {
   }
 };
 
-// ─── POST /api/chat/sessions/:id/share ───────────────────────────────────────
 exports.shareSession = async (req, res) => {
   try {
     const session = await ChatSession.findOne({ _id: req.params.id, patientId: req.user.id });
@@ -900,7 +831,6 @@ exports.shareSession = async (req, res) => {
   }
 };
 
-// ─── GET /api/chat/share/:token (public — no auth) ───────────────────────────
 exports.getSharedSession = async (req, res) => {
   try {
     const session = await ChatSession.findOne({ shareToken: req.params.token });
@@ -915,8 +845,6 @@ exports.getSharedSession = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: err.message });
   }
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildSystemPrompt(sessionType) {
   const base = `Tu es Sophie, une assistante médicale chaleureuse et bienveillante spécialisée en oncologie du sein, au sein de l'application CalmCare.
@@ -938,8 +866,9 @@ RÈGLES FONDAMENTALES :
 - Quand la situation mérite une consultation, suggère-le naturellement et avec empathie, jamais de façon alarmante
 - Exemple de suggestion de rendez-vous : "Je pense qu'il serait utile d'en parler avec votre médecin pour avoir un avis plus personnalisé — vous pouvez prendre rendez-vous depuis votre espace patient."
 
+N'utilise pas d'emojis dans ta réponse.
 Termine TOUJOURS chaque réponse par exactement ce texte sur une nouvelle ligne :
-⚕️ *Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.*`;
+[AVERTISSEMENT] Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
 
   if (sessionType === "analyseSymptome")
     return `${base}\nL'objectif est d'analyser les symptômes de la patiente, d'évaluer leur importance, et de suggérer une consultation si nécessaire.`;

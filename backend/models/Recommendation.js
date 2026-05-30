@@ -1,4 +1,3 @@
-// Recommendation model - AI-generated recommendation linked to a symptom
 const mongoose = require("mongoose");
 
 const recommendationSchema = new mongoose.Schema(
@@ -27,7 +26,6 @@ const recommendationSchema = new mongoose.Schema(
       enum: ["faible", "modere", "eleve", "urgent"],
       default: "modere"
     },
-    // Embedding of `contenu` — stored for semantic similarity lookups in sendMessage.
     embedding: { type: [Number], default: [] },
   },
   { timestamps: true }

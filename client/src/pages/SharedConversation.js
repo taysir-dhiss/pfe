@@ -1,14 +1,11 @@
-// Page Conversation Partagée — vue publique (sans authentification) d'une session chatbot
-// Accessible via un lien unique : /share/:token
-// Affiche les messages de la conversation en lecture seule
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-// Sépare le corps du message du disclaimer IA (⚕️) pour un affichage stylistique distinct
+const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 function splitDisclaimer(text) {
-  const idx = text.indexOf("⚕️");
+  const idx = text.indexOf(DISCLAIMER_MARKER);
   if (idx === -1) return { body: text.trim(), disclaimer: null };
-  return { body: text.slice(0, idx).trimEnd(), disclaimer: text.slice(idx).trim() };
+  return { body: text.slice(0, idx).trimEnd(), disclaimer: text.slice(idx + DISCLAIMER_MARKER.length).trim() };
 }
 
 export default function SharedConversation() {
@@ -57,7 +54,7 @@ export default function SharedConversation() {
           <img src="/images/ribonTN.png" alt="CalmCare" className="w-full h-full object-cover" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-800 leading-none">CalmCare</p>
+          <p className="text-sm font-bold text-gray-800 leading-none">CalmCare TN</p>
           <p className="text-[11px] text-pink-400 mt-0.5">Conversation partagée · Lecture seule</p>
         </div>
         <span className="text-[11px] bg-pink-50 text-pink-500 border border-pink-200 rounded-full px-2.5 py-1 font-medium flex-shrink-0">

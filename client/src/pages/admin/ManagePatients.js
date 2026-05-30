@@ -1,26 +1,23 @@
-// Page Gestion des patientes (admin) — liste avec recherche et suppression
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import Spinner from "../../components/Spinner";
+import { UserGroupIcon, TrashIcon } from "../../components/Icons";
 
 export default function ManagePatients() {
-  const [patients, setPatients] = useState([]); // Liste complète des patientes
+  const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");     // Terme de recherche pour filtrer la liste
+  const [search, setSearch] = useState("");
 
-  // Charge la liste de toutes les patientes au montage
   useEffect(() => {
     api.get("/admin/patients").then(({ data }) => setPatients(data)).finally(() => setLoading(false));
   }, []);
 
-  // Supprime une patiente après confirmation et met à jour la liste locale
   const handleDelete = async id => {
     if (!window.confirm("Supprimer cette patiente ?")) return;
     await api.delete(`/admin/patients/${id}`);
     setPatients(prev => prev.filter(p => p._id !== id));
   };
 
-  // Filtre côté client sur le nom et l'email (insensible à la casse)
   const filtered = patients.filter(p =>
     `${p.nom} ${p.email}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -29,17 +26,18 @@ export default function ManagePatients() {
 
   return (
     <div className="page">
-      <h1 className="page-title">👥 Gestion des patientes</h1>
+      <h1 className="page-title flex items-center gap-2">
+        <UserGroupIcon className="w-6 h-6 text-brand-600" />
+        Gestion des patientes
+      </h1>
 
       <div className="card">
-        {/* Search + count */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <input className="input w-64" placeholder="Rechercher par nom ou email..."
             value={search} onChange={e => setSearch(e.target.value)} />
           <span className="text-sm text-gray-700">{filtered.length} patiente(s)</span>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -68,7 +66,10 @@ export default function ManagePatients() {
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button onClick={() => handleDelete(p._id)}
-                      className="btn-danger btn-sm">🗑️ Supprimer</button>
+                      className="btn-danger btn-sm flex items-center gap-1">
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      Supprimer
+                    </button>
                   </td>
                 </tr>
               ))}
