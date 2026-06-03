@@ -66,11 +66,8 @@ const SPACES = [
   { to: "/appointments",    Icon: IconCalendar,    label: "RDV",             iconColor: "text-blue-500",   iconBg: "bg-blue-100"   },
 ];
 
-const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 function parseMessage(contenu) {
-  const idx = contenu.indexOf(DISCLAIMER_MARKER);
-  if (idx === -1) return { body: contenu, disclaimer: null };
-  return { body: contenu.slice(0, idx).trimEnd(), disclaimer: contenu.slice(idx + DISCLAIMER_MARKER.length).trim() };
+  return { body: contenu, disclaimer: null };
 }
 
 const SESSION_TYPE_LABELS = {

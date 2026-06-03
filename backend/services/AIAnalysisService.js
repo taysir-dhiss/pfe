@@ -2,9 +2,6 @@ const OpenAI = require("openai");
 
 const AI_MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
-const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
-const DISCLAIMER =
-  `${DISCLAIMER_MARKER} Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
 
 // Liste des symptômes qui forcent toujours une escalade médicale, même si l'IA a sous-estimé la gravité
 const CRITICAL_PATTERNS = [
@@ -208,8 +205,7 @@ function applySafetyFilter(classification) {
 // Assemble le texte final de la réponse IA en Markdown à partir de l'analyse, des recommandations et du résultat du filtre de sécurité
 function buildFinalResponse({ contenu, classification, analysis, safety, fallbackText = null }) {
   if (!analysis || !analysis.analysis) {
-    const base = fallbackText || "Je suis là pour vous accompagner. N'hésitez pas à décrire vos symptômes plus précisément.";
-    return `${base}\n\n${DISCLAIMER}`;
+    return fallbackText || "Je suis là pour vous accompagner. N'hésitez pas à décrire vos symptômes plus précisément.";
   }
 
   const parts = [];
@@ -226,7 +222,6 @@ function buildFinalResponse({ contenu, classification, analysis, safety, fallbac
   } else if (safety?.suggestsAppointment) {
     parts.push("\nJe vous encourage à en parler avec votre médecin lors de votre prochaine consultation — vous pouvez prendre rendez-vous depuis votre espace patient.");
   }
-  parts.push(`\n${DISCLAIMER}`);
   return parts.join("\n");
 }
 
@@ -307,9 +302,7 @@ async function generateConversationalResponse(classification, opts = {}) {
     `- Ne pose JAMAIS de diagnostic médical\n` +
     `- Génère une réponse UNIQUE en texte naturel (jamais du JSON, jamais de markdown excessif)\n` +
     `- Ne recommence PAS la conversation comme si c'était le premier message\n` +
-    `- N'utilise pas d'emojis dans ta réponse.\n` +
-    `- Termine TOUJOURS par exactement cette ligne sur une nouvelle ligne :\n` +
-    `${DISCLAIMER_MARKER} Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
+    `- N'utilise pas d'emojis dans ta réponse.`;
 
   const historyWithoutCurrent = history.slice(0, -1).slice(-14);
   const historyMessages = historyWithoutCurrent.map((m) => ({
@@ -330,13 +323,7 @@ async function generateConversationalResponse(classification, opts = {}) {
     temperature: 0.55,
   });
 
-  let response = completion.choices[0].message.content.trim();
-
-  if (!response.includes(DISCLAIMER_MARKER)) {
-    response += `\n\n${DISCLAIMER}`;
-  }
-
-  return response;
+  return completion.choices[0].message.content.trim();
 }
 
 module.exports = {

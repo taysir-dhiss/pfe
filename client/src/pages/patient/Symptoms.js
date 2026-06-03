@@ -222,7 +222,6 @@ function parseAnalysis(text) {
   const sections = [];
   let current = null;
   for (const line of lines) {
-    if (line.startsWith("[AVERTISSEMENT]")) { sections.push({ type: "disclaimer", text: line.replace("[AVERTISSEMENT]", "").trim() }); continue; }
     if (line.startsWith("Analyse préliminaire")) { sections.push({ type: "title", text: line }); continue; }
     if (line.startsWith("Niveau") || line.startsWith("Intensité")) { sections.push({ type: "meta", text: line }); continue; }
     if (!line.startsWith("•") && !line.startsWith("-") && line.endsWith(":")) {
@@ -238,11 +237,8 @@ function parseAnalysis(text) {
   return sections;
 }
 
-const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 function splitDisclaimer(text) {
-  const idx = text.indexOf(DISCLAIMER_MARKER);
-  if (idx === -1) return { body: text.trim(), disclaimer: null };
-  return { body: text.slice(0, idx).trimEnd(), disclaimer: text.slice(idx + DISCLAIMER_MARKER.length).trim() };
+  return { body: text.trim(), disclaimer: null };
 }
 
 function AnalysisBubble({ contenu }) {

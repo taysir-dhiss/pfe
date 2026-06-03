@@ -10,10 +10,6 @@ const Recommendation = require("../models/Recommendation");
 const Symptom = require("../models/Symptom");
 const Patient = require("../models/Patient");
 
-// Texte d'avertissement ajouté à la fin de chaque réponse locale (hors pipeline IA)
-// Les réponses du pipeline principal utilisent DISCLAIMER_MARKER dans AIAnalysisService
-const DISCLAIMER =
-  "Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.";
 
 const AI_MODEL = "gpt-4o-mini";
 
@@ -63,8 +59,7 @@ const LOCAL_RESPONSES = [
 **Position** : En cas de douleur au niveau du sein, porter un soutien-gorge de soutien confortable aide.
 
 Si la douleur est intense (≥ 7/10) ou persistante, contactez votre équipe médicale sans attendre.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "fatigue",
@@ -86,8 +81,7 @@ ${DISCLAIMER}`
 - Acceptez l'aide de votre entourage pour les tâches quotidiennes
 
 Parlez-en à votre oncologue si la fatigue interfère avec vos activités essentielles.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "nausée",
@@ -107,8 +101,7 @@ ${DISCLAIMER}`
 - Reposez-vous après les repas, la tête légèrement surélevée
 
 Si vous vomissez plus de 3 fois en 24h ou si vous ne pouvez rien garder, consultez en urgence pour éviter la déshydratation.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "insomnie",
@@ -130,8 +123,7 @@ ${DISCLAIMER}`
 
 **Si les troubles persistent :**
 Une thérapie cognitivo-comportementale pour l'insomnie (TCC-I) est la méthode la plus efficace à long terme. Demandez une orientation à votre médecin.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "appétit",
@@ -152,8 +144,7 @@ ${DISCLAIMER}`
 - Mangez dans un environnement agréable, avec de la compagnie si possible
 
 Si vous perdez plus de 5% de votre poids en un mois, signalez-le à votre équipe médicale — une consultation diététique peut être proposée.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "essoufflement",
@@ -178,8 +169,7 @@ ${DISCLAIMER}`
 - Vous êtes essoufflée au repos
 
 Dans ces cas, il peut s'agir d'une urgence médicale nécessitant une évaluation immédiate.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "traitement",
@@ -200,8 +190,7 @@ ${DISCLAIMER}`
 - **Baisse de l'immunité** : éviter les foules et les personnes malades pendant les aplasies
 
 Chaque patiente réagit différemment aux traitements. Notez vos symptômes dans un journal pour en parler à votre équipe lors de chaque consultation.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "anxiété",
@@ -223,8 +212,7 @@ ${DISCLAIMER}`
 - **Information** : comprendre son traitement réduit souvent l'anxiété liée à l'inconnu
 
 Un soutien psychologique professionnel est remboursé dans le cadre du parcours oncologique — n'hésitez pas à en demander un.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "stade",
@@ -246,8 +234,7 @@ ${DISCLAIMER}`
 Ces chiffres sont des statistiques générales — ils ne prédisent pas ce qui se passera pour vous individuellement. Chaque cas est unique et les avancées thérapeutiques sont constantes.
 
 Votre oncologue est la meilleure personne pour vous donner une information personnalisée sur votre situation.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "compréhension",
@@ -271,8 +258,7 @@ ${DISCLAIMER}`
 - Tout symptôme nouveau et inhabituel qui vous inquiète
 
 N'hésitez jamais à appeler votre équipe médicale en cas de doute.
-
-${DISCLAIMER}`
+`
   },
   {
     category: "urgence",
@@ -299,8 +285,7 @@ ${DISCLAIMER}`
 - Perte de poids non intentionnelle
 
 En cas de doute, il vaut toujours mieux appeler votre équipe soignante — ils préfèrent être contactés pour un faux problème que de manquer une vraie urgence.
-
-${DISCLAIMER}`
+`
   },
 ];
 
@@ -344,7 +329,7 @@ function detectSymptomCategory(userMessage) {
 // ou pour l'affichage immédiat pendant que l'appel IA se prépare en arrière-plan
 function generateLocalAnalysis(symptoms) {
   if (!symptoms || symptoms.length === 0) {
-    return `Bonjour. Je suis votre assistante médicale IA. Aucun symptôme n'a été renseigné pour cette session.\n\nN'hésitez pas à déclarer vos symptômes afin que je puisse vous accompagner au mieux.\n\n${DISCLAIMER}`;
+    return `Bonjour. Je suis votre assistante médicale IA. Aucun symptôme n'a été renseigné pour cette session.\n\nN'hésitez pas à déclarer vos symptômes afin que je puisse vous accompagner au mieux.`;
   }
 
   const maxIntensity = Math.max(...symptoms.map((s) => s.intensite));
@@ -395,8 +380,7 @@ Recommandations douces :
 ${recsText}
 
 Je reste disponible pour répondre à toutes vos questions sur ces symptômes ou sur votre parcours de soins.
-
-${DISCLAIMER}`;
+`;
 }
 
 // Réponse de secours quand toutes les tentatives IA ont échoué
@@ -413,8 +397,7 @@ Pour vous apporter une réponse précise et personnalisée, je vous encourage à
 - **Contacter directement votre équipe médicale** pour toute préoccupation urgente
 
 Je suis là pour vous aider dans votre parcours de soins.
-
-${DISCLAIMER}`;
+`;
 }
 
 async function classifySymptoms(userMessage, history) {
@@ -836,7 +819,7 @@ Format exact : { "analysis": "...", "suggestions": ["q1", "q2", "q3"] }`
         });
         const raw = completion.choices[0].message.content.replace(/```json\n?|\n?```/g, "").trim();
         const parsed = JSON.parse(raw);
-        if (parsed.analysis) analysis = parsed.analysis + "\n\n" + DISCLAIMER;
+        if (parsed.analysis) analysis = parsed.analysis;
         if (Array.isArray(parsed.suggestions) && parsed.suggestions.length === 3) suggestions = parsed.suggestions;
       } catch {}
     }
@@ -916,9 +899,7 @@ RÈGLES FONDAMENTALES :
 - Quand la situation mérite une consultation, suggère-le naturellement et avec empathie, jamais de façon alarmante
 - Exemple de suggestion de rendez-vous : "Je pense qu'il serait utile d'en parler avec votre médecin pour avoir un avis plus personnalisé — vous pouvez prendre rendez-vous depuis votre espace patient."
 
-N'utilise pas d'emojis dans ta réponse.
-Termine TOUJOURS chaque réponse par exactement ce texte sur une nouvelle ligne :
-[AVERTISSEMENT] Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
+N'utilise pas d'emojis dans ta réponse.`;
 
   if (sessionType === "analyseSymptome")
     return `${base}\nL'objectif est d'analyser les symptômes de la patiente, d'évaluer leur importance, et de suggérer une consultation si nécessaire.`;

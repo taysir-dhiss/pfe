@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 function splitDisclaimer(text) {
-  const idx = text.indexOf(DISCLAIMER_MARKER);
-  if (idx === -1) return { body: text.trim(), disclaimer: null };
-  return { body: text.slice(0, idx).trimEnd(), disclaimer: text.slice(idx + DISCLAIMER_MARKER.length).trim() };
+  return { body: text.trim(), disclaimer: null };
 }
 
 export default function SharedConversation() {
