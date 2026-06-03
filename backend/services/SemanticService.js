@@ -6,6 +6,7 @@ const THRESHOLD_HIGH   = 0.82;
 const THRESHOLD_MEDIUM = 0.62;
 const TOP_K            = 3;
 
+// Crée le client OpenAI une seule fois et le réutilise pour tous les appels suivants
 let _openai = null;
 function getOpenAI() {
   if (!_openai) {
@@ -15,6 +16,7 @@ function getOpenAI() {
   return _openai;
 }
 
+// Mesure à quel point deux vecteurs se ressemblent : résultat proche de 1 = très similaires, proche de 0 = rien en commun
 function cosineSimilarity(a, b) {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -26,6 +28,7 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// Envoie un texte à OpenAI et récupère son vecteur numérique de 1536 dimensions
 async function generateEmbedding(text) {
   const resp = await getOpenAI().embeddings.create({
     model: EMBEDDING_MODEL,
@@ -34,6 +37,7 @@ async function generateEmbedding(text) {
   return resp.data[0].embedding;
 }
 
+// Compare le message actuel de la patiente avec ses recommandations passées et retourne la plus proche si elle est suffisamment similaire
 async function findSemanticContext(userMessage, patientId) {
   const queryEmbedding = await generateEmbedding(userMessage);
 

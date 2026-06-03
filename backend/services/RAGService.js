@@ -9,6 +9,7 @@ const MIN_CHUNK_LEN    = 80;
 const EMBED_BATCH_SIZE = 5;
 const MIN_RAG_SCORE    = 0.32;
 
+// Crée le client OpenAI une seule fois et le réutilise pour tous les appels suivants
 let _openai = null;
 function getOpenAI() {
   if (!_openai) {
@@ -18,6 +19,7 @@ function getOpenAI() {
   return _openai;
 }
 
+// Mesure à quel point deux vecteurs se ressemblent : résultat proche de 1 = très similaires, proche de 0 = rien en commun
 function cosineSimilarity(a, b) {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -29,6 +31,7 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+// Coupe un long texte PDF en petits morceaux qui se chevauchent légèrement en essayant de couper à la fin d'une phrase
 function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
   const normalised = text
     .replace(/\r\n/g, "\n")
@@ -62,6 +65,7 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
   return chunks;
 }
 
+// Envoie un texte à OpenAI et récupère son vecteur numérique de 1536 dimensions
 async function generateEmbedding(text) {
   const resp = await getOpenAI().embeddings.create({
     model: EMBEDDING_MODEL,
@@ -70,6 +74,7 @@ async function generateEmbedding(text) {
   return resp.data[0].embedding;
 }
 
+// Génère les vecteurs de tous les chunks et les enregistre en base de données  5 par 5 en parallèle
 async function storeChunks(chunks, sourceFile, sourceId, uploadedBy) {
   const docs = [];
 
@@ -98,6 +103,7 @@ async function storeChunks(chunks, sourceFile, sourceId, uploadedBy) {
   return docs.length;
 }
 
+// Cherche dans la base les morceaux de PDF les plus proches du message de la patiente et retourne les plus pertinents
 async function retrieveRelevantChunks(userMessage, topK = 5) {
   const queryEmbedding = await generateEmbedding(userMessage);
 

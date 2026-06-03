@@ -6,6 +6,7 @@ const DISCLAIMER_MARKER = "[AVERTISSEMENT]";
 const DISCLAIMER =
   `${DISCLAIMER_MARKER} Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.`;
 
+// Liste des symptômes qui forcent toujours une escalade médicale, même si l'IA a sous-estimé la gravité
 const CRITICAL_PATTERNS = [
   /douleur.{0,20}(thoracique|poitrine)/i,
   /dyspnée.{0,15}(sévère|aiguë|intense|soudaine)/i,
@@ -19,6 +20,7 @@ const CRITICAL_PATTERNS = [
   /fièvre.{0,15}38[.,][5-9]/i,
 ];
 
+// Crée le client OpenAI une seule fois et le réutilise pour tous les appels suivants
 let _openai = null;
 function getOpenAI() {
   if (!_openai) {
@@ -28,6 +30,7 @@ function getOpenAI() {
   return _openai;
 }
 
+// Envoie le message de la patiente au modèle IA et récupère les symptômes détectés, la gravité estimée et le niveau de confiance
 async function classifySymptoms(message, history = []) {
   const histCtx = history
     .slice(-6)
@@ -71,6 +74,7 @@ Règles générales : déduis les symptômes implicites, ne te limite pas aux mo
   };
 }
 
+// Génère une analyse clinique structurée avec des recommandations, en injectant dans le prompt les extraits PDF et le contexte sémantique disponibles
 async function generateMedicalAnalysis(classification, opts = {}) {
   const {
     userMessage       = "",
@@ -180,6 +184,7 @@ Règles :
   };
 }
 
+// Vérifie si les symptômes détectés correspondent à une urgence médicale et retourne si une prise de rendez-vous est nécessaire
 function applySafetyFilter(classification) {
   const { severity = "low", symptoms = [], confidence = 1 } = classification;
 
@@ -200,6 +205,7 @@ function applySafetyFilter(classification) {
   };
 }
 
+// Assemble le texte final de la réponse IA en Markdown à partir de l'analyse, des recommandations et du résultat du filtre de sécurité
 function buildFinalResponse({ contenu, classification, analysis, safety, fallbackText = null }) {
   if (!analysis || !analysis.analysis) {
     const base = fallbackText || "Je suis là pour vous accompagner. N'hésitez pas à décrire vos symptômes plus précisément.";
@@ -224,6 +230,7 @@ function buildFinalResponse({ contenu, classification, analysis, safety, fallbac
   return parts.join("\n");
 }
 
+// Génère la réponse conversationnelle de Sophie en tenant compte de tout l'historique de la conversation, des extraits PDF pertinents et des recommandations passées de la patiente
 async function generateConversationalResponse(classification, opts = {}) {
   const {
     userMessage       = "",

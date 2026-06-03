@@ -10,11 +10,14 @@ const Recommendation = require("../models/Recommendation");
 const Symptom = require("../models/Symptom");
 const Patient = require("../models/Patient");
 
+// Texte d'avertissement ajouté à la fin de chaque réponse locale (hors pipeline IA)
+// Les réponses du pipeline principal utilisent DISCLAIMER_MARKER dans AIAnalysisService
 const DISCLAIMER =
   "Cette réponse est générée par une IA et ne constitue pas un diagnostic médical. Consultez un professionnel de santé pour un avis médical adapté à votre situation.";
 
 const AI_MODEL = "gpt-4o-mini";
 
+// Même pattern singleton que dans les services — on évite de recréer le client à chaque requête
 let openai = null;
 const getOpenAI = () => {
   if (!openai) {
@@ -26,6 +29,9 @@ const getOpenAI = () => {
   return openai;
 };
 
+// Normalise un texte pour la comparaison par mots-clés :
+// minuscules + décomposition des accents (NFD) + suppression ponctuation
+// Sans ça, "fatiguée" ne matche pas "fatigue" et "j'ai mal" ne matche pas "mal"
 function normalizeText(text) {
   return text
     .toLowerCase()
@@ -298,6 +304,10 @@ ${DISCLAIMER}`
   },
 ];
 
+// Cherche la catégorie médicale la plus probable dans le message de la patiente
+// Système de scoring par mots-clés : phrase complète > mot exact > préfixe
+// C'est la couche de détection rapide utilisée avant (et en parallèle de) la classification IA
+// Si OpenAI tombe, ce système prend le relais via localFallbackResponse()
 function detectSymptomCategory(userMessage) {
   const normalized = normalizeText(userMessage);
   const words = normalized.split(/\s+/);
@@ -312,13 +322,13 @@ function detectSymptomCategory(userMessage) {
       if (!nkw) continue;
 
       if (nkw.includes(" ")) {
-        if (normalized.includes(nkw)) score += 3;
+        if (normalized.includes(nkw)) score += 3;     // expression complète trouvée : meilleur signal
       } else if (words.includes(nkw)) {
-        score += 3;
+        score += 3;                                    // mot exact
       } else if (nkw.length >= 4 && words.some((w) => w.startsWith(nkw))) {
-        score += 2;
+        score += 2;                                    // le mot du message commence par le mot-clé (ex: "fatigué" → "fatigue")
       } else if (nkw.length >= 5 && words.some((w) => nkw.startsWith(w) && w.length >= 4)) {
-        score += 1;
+        score += 1;                                    // correspondance partielle inverse — moins fiable
       }
     }
     if (score > bestScore) {
@@ -330,6 +340,8 @@ function detectSymptomCategory(userMessage) {
   return bestScore > 0 ? bestEntry : null;
 }
 
+// Génère une analyse de symptômes sans appel IA — utilisée quand OpenAI est indisponible
+// ou pour l'affichage immédiat pendant que l'appel IA se prépare en arrière-plan
 function generateLocalAnalysis(symptoms) {
   if (!symptoms || symptoms.length === 0) {
     return `Bonjour. Je suis votre assistante médicale IA. Aucun symptôme n'a été renseigné pour cette session.\n\nN'hésitez pas à déclarer vos symptômes afin que je puisse vous accompagner au mieux.\n\n${DISCLAIMER}`;
@@ -387,6 +399,9 @@ Je reste disponible pour répondre à toutes vos questions sur ces symptômes ou
 ${DISCLAIMER}`;
 }
 
+// Réponse de secours quand toutes les tentatives IA ont échoué
+// On essaie d'abord de retrouver une catégorie connue pour donner au moins une réponse utile
+// En dernier recours : message générique d'orientation
 function localFallbackResponse(userMessage) {
   const match = detectSymptomCategory(userMessage);
   if (match) return match.response;
@@ -530,6 +545,8 @@ exports.closeSession = async (req, res) => {
   }
 };
 
+// Pipeline principal : traite un message et retourne la réponse de Sophie
+// L'objet _debug sert uniquement à améliorer les logs d'erreur — on sait exactement où le pipeline s'est arrêté
 exports.sendMessage = async (req, res) => {
   let _debug = { contenu: null, classification: null, aiResult: null, finalResponse: null };
 
@@ -540,6 +557,8 @@ exports.sendMessage = async (req, res) => {
     _debug.contenu = contenu;
     console.log("Incoming message:", contenu);
 
+    // Détection locale immédiate — pas d'appel API, juste des mots-clés
+    // Le résultat est passé plus loin au generateConversationalResponse comme indice de sujet
     const detectedEntry    = detectSymptomCategory(contenu);
     const detectedCategory = detectedEntry?.category ?? null;
     if (detectedCategory) console.log("Detected category:", detectedCategory);
@@ -548,8 +567,11 @@ exports.sendMessage = async (req, res) => {
     if (!session) return res.status(404).json({ message: "Session introuvable" });
     if (session.datefin) return res.status(400).json({ message: "Session terminée" });
 
+    // On sauvegarde le message de la patiente avant de lancer le pipeline
+    // Comme ça, même si le pipeline plante, le message est tracé en base
     await ChatMessage.create({ sessionId: session._id, contenu, role: "patient" });
 
+    // 20 messages max pour l'historique — assez pour le contexte, pas trop pour les tokens
     const history = await ChatMessage.find({ sessionId: session._id })
       .sort({ dateEnvoi: 1 })
       .limit(20);
@@ -557,6 +579,8 @@ exports.sendMessage = async (req, res) => {
     const sessionId = session._id.toString();
     aiLogger.log("user_input", { sessionId, contentLength: contenu.length, preview: contenu.slice(0, 200) });
 
+    // Étape 1 : recherche sémantique dans les recommandations passées de la patiente
+    // Les erreurs ici ne bloquent pas le pipeline — on continue sans contexte sémantique
     let semanticCtx = { tier: "none", context: null, score: 0 };
     try {
       semanticCtx = await SemanticService.findSemanticContext(contenu, req.user.id);
@@ -566,9 +590,11 @@ exports.sendMessage = async (req, res) => {
     }
     console.log("Semantic lookup:", { tier: semanticCtx.tier, score: semanticCtx.score?.toFixed(4) });
 
+    // Étape 2 : récupération des chunks PDF pertinents via RAG
+    // Même logique : si RAG échoue, le pipeline continue sans documentation médicale externe
     let ragChunks = [];
     try {
-      ragChunks = await RAGService.retrieveRelevantChunks(contenu, 4);
+      ragChunks = await RAGService.retrieveRelevantChunks(contenu, 4);  // 4 chunks max pour ne pas saturer le prompt
       aiLogger.log("rag_retrieval", {
         count:    ragChunks.length,
         topScore: ragChunks[0]?.score?.toFixed(4) ?? "n/a",
@@ -578,6 +604,9 @@ exports.sendMessage = async (req, res) => {
       aiLogger.logError("rag_retrieval_failed", err, { sessionId });
     }
 
+    // Étape 3 : classification IA des symptômes
+    // Si le modèle plante ou retourne quelque chose d'invalide, on fallback sur "moderate/0.3"
+    // — on préfère une réponse conservatrice plutôt qu'aucune réponse
     let classification;
     try {
       classification = await AIAnalysisService.classifySymptoms(contenu, history);
@@ -589,14 +618,19 @@ exports.sendMessage = async (req, res) => {
     _debug.classification = classification;
     console.log("Classification:", classification);
 
+    // On décide si la réponse doit suggérer une consultation médicale
+    // confidence < 0.5 : le modèle lui-même n'est pas sûr → mieux vaut orienter vers un professionnel
     const needsConsultation =
       semanticCtx.tier === "medium" ||
       ["high", "critical"].includes(classification.severity) ||
       classification.confidence < 0.5;
 
+    // Étape 4 : filtre de sécurité — détermine si on doit forcer une prise de rendez-vous
     const safety = AIAnalysisService.applySafetyFilter(classification);
     aiLogger.log("safety_filter", safety, { sessionId });
 
+    // Étape 5 : génération de la réponse conversationnelle complète
+    // C'est l'appel le plus coûteux — en cas d'échec, localFallbackResponse prend le relais
     let finalResponse;
     try {
       finalResponse = await AIAnalysisService.generateConversationalResponse(classification, {
@@ -615,6 +649,7 @@ exports.sendMessage = async (req, res) => {
       }, { sessionId });
     } catch (err) {
       aiLogger.logError("conversational_response_failed", err, { sessionId });
+      // Fallback local : on essaie d'abord par catégorie, sinon message générique
       finalResponse = localFallbackResponse(contenu);
     }
     _debug.finalResponse = finalResponse;
@@ -676,6 +711,9 @@ exports.getMessages = async (req, res) => {
   }
 };
 
+// Analyse en lot : charge les symptômes déclarés et demande au modèle des recommandations structurées
+// Différent de sendMessage — ici on traite tous les symptômes d'un coup, pas un seul message
+// Les recommandations sont sauvegardées en base et leurs embeddings générés en arrière-plan
 exports.analyserSymptomes = async (req, res) => {
   try {
     const patient = await Patient.findById(req.user.id).select("-motDePasse");
@@ -728,6 +766,9 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
       )
     );
 
+    // On génère les embeddings en arrière-plan sans bloquer la réponse HTTP
+    // Ces vecteurs seront utilisés par SemanticService lors des prochaines conversations
+    // On ignore les erreurs silencieusement — la recommandation reste utile même sans vecteur
     (async () => {
       for (const rec of saved) {
         try {
@@ -743,6 +784,9 @@ Génère des recommandations médicales claires et prioritaires. Format: JSON av
   }
 };
 
+// Crée une session + génère l'analyse initiale affichée au démarrage du chat symptômes
+// Stratégie double : analyse locale immédiate + tentative IA pour enrichir si possible
+// Comme ça la patiente voit quelque chose rapidement, même si l'appel OpenAI est lent
 exports.initializeWithSymptoms = async (req, res) => {
   try {
     const { symptoms = [] } = req.body;
@@ -753,8 +797,10 @@ exports.initializeWithSymptoms = async (req, res) => {
       dateDebut: new Date(),
     });
 
+    // Analyse locale immédiate — disponible sans appel API
     let analysis = generateLocalAnalysis(symptoms);
 
+    // Suggestions de questions par défaut — remplacées par des questions personnalisées si on a des symptômes
     let suggestions = ["Que signifient ces symptômes ?", "Ces symptômes sont-ils préoccupants ?", "Que puis-je faire pour me soulager ?"];
     if (symptoms.length > 0) {
       const types = symptoms.map((s) => s.type.toLowerCase());
@@ -820,8 +866,9 @@ exports.shareSession = async (req, res) => {
     const session = await ChatSession.findOne({ _id: req.params.id, patientId: req.user.id });
     if (!session) return res.status(404).json({ message: "Session introuvable" });
 
+    // Idempotent : si la patiente clique deux fois sur "Partager", elle reçoit le même lien
     if (!session.shareToken) {
-      session.shareToken = crypto.randomBytes(20).toString("hex");
+      session.shareToken = crypto.randomBytes(20).toString("hex");  // 40 chars hex — collision quasi-impossible
       await session.save();
     }
 
@@ -846,6 +893,9 @@ exports.getSharedSession = async (req, res) => {
   }
 };
 
+// Construit le prompt système de base selon le type de session
+// Le type de session oriente Sophie : analyse de symptômes vs questions générales vs support émotionnel
+// Ce prompt est injecté à chaque message — il définit la personnalité et les règles de Sophie
 function buildSystemPrompt(sessionType) {
   const base = `Tu es Sophie, une assistante médicale chaleureuse et bienveillante spécialisée en oncologie du sein, au sein de l'application CalmCare.
 Tu t'exprimes en français, de façon naturelle et humaine — comme une professionnelle de santé attentionnée qui prend le temps d'écouter vraiment.

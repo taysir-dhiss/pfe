@@ -3,8 +3,10 @@ const Appointment  = require("../models/Appointment");
 const CustomReminder = require("../models/CustomReminder");
 const notifStore   = require("./notificationStore");
 
+// Formate une date en heure lisible au format français "HH:MM"
 const fmtTime = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
+// Cherche les rendez-vous prévus dans exactement 4 heures et envoie une notification de rappel à la patiente
 async function sendAppointmentReminders() {
   try {
     const now    = Date.now();
@@ -31,6 +33,7 @@ async function sendAppointmentReminders() {
   }
 }
 
+// Parcourt toutes les alarmes actives et déclenche celles dont l'heure programmée correspond à la minute actuelle
 async function sendCustomAlarms() {
   try {
     const now    = new Date();
@@ -81,6 +84,7 @@ async function sendCustomAlarms() {
   }
 }
 
+// Démarre le planificateur qui exécute les rappels de rendez-vous et les alarmes personnalisées toutes les minutes
 function startScheduler() {
   cron.schedule("* * * * *", async () => {
     await sendAppointmentReminders();
