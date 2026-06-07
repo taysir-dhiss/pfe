@@ -4,7 +4,16 @@ import Spinner from "../../components/Spinner";
 import { CalendarIcon, ClockIcon, CheckCircleIcon } from "../../components/Icons";
 
 const TYPES = ["Consultation", "Traitement", "Suivi", "Urgence"];
-const blankForm = { date: "", medecin: "", type: "Consultation" };
+const REMINDER_OPTIONS = [
+  { label: "30 minutes avant", value: 30 },
+  { label: "1 heure avant",    value: 60 },
+  { label: "2 heures avant",   value: 120 },
+  { label: "4 heures avant",   value: 240 },
+  { label: "12 heures avant",  value: 720 },
+  { label: "1 jour avant",     value: 1440 },
+  { label: "2 jours avant",    value: 2880 },
+];
+const blankForm = { date: "", medecin: "", type: "Consultation", reminderOffset: 240 };
 
 const toLocal = d => {
   if (!d) return "";
@@ -29,18 +38,28 @@ export default function Appointments() {
 
   useEffect(() => { load(); }, []);
 
+  const buildReminderDate = (dateStr, offsetMinutes) => {
+    const apptDate = new Date(dateStr);
+    return new Date(apptDate.getTime() - offsetMinutes * 60 * 1000).toISOString();
+  };
+
+  const reminderLabel = (offset) =>
+    REMINDER_OPTIONS.find(o => o.value === +offset)?.label ?? "avant";
+
   const handleSubmit = async e => {
     e.preventDefault();
     setMsg({ text: "", type: "" });
+    const { reminderOffset, ...rest } = form;
+    const payload = { ...rest, customReminderDate: buildReminderDate(form.date, reminderOffset) };
     try {
       if (editing) {
-        const { data } = await api.put(`/appointments/${editing}`, form);
+        const { data } = await api.put(`/appointments/${editing}`, payload);
         setAppointments(prev => prev.map(a => a._id === editing ? data : a));
         setEditing(null);
         setMsg({ text: "Rendez-vous mis à jour.", type: "success" });
       } else {
-        await api.post("/appointments", form);
-        setMsg({ text: "Rendez-vous planifié. Vous recevrez un rappel 4h avant.", type: "success" });
+        await api.post("/appointments", payload);
+        setMsg({ text: `Rendez-vous planifié. Rappel : ${reminderLabel(reminderOffset)}.`, type: "success" });
         load();
       }
       setForm(blankForm);
@@ -50,8 +69,16 @@ export default function Appointments() {
   };
 
   const startEdit = a => {
+    let reminderOffset = 240;
+    if (a.customReminderDate && a.date) {
+      const diffMin = (new Date(a.date) - new Date(a.customReminderDate)) / 60000;
+      const closest = REMINDER_OPTIONS.reduce((prev, cur) =>
+        Math.abs(cur.value - diffMin) < Math.abs(prev.value - diffMin) ? cur : prev
+      );
+      reminderOffset = closest.value;
+    }
     setEditing(a._id);
-    setForm({ date: toLocal(a.date), medecin: a.medecin || "", type: a.type || "Consultation" });
+    setForm({ date: toLocal(a.date), medecin: a.medecin || "", type: a.type || "Consultation", reminderOffset });
     setMsg({ text: "", type: "" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -110,6 +137,12 @@ export default function Appointments() {
                 {TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Rappel</label>
+              <select className="input" value={form.reminderOffset} onChange={e => setForm({ ...form, reminderOffset: +e.target.value })}>
+                {REMINDER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
             <div className="flex gap-2 pt-1">
               <button type="submit" className="btn-primary flex-1">
                 {editing ? "Enregistrer" : "Planifier"}
@@ -120,12 +153,6 @@ export default function Appointments() {
             </div>
           </form>
 
-          <div className="mt-5 p-3 bg-brand-50 rounded-xl border border-brand-100 flex items-start gap-2">
-            <ClockIcon className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-brand-600 leading-relaxed">
-              Un rappel automatique vous sera envoyé <strong>4 heures</strong> avant chaque rendez-vous.
-            </p>
-          </div>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
@@ -163,10 +190,12 @@ export default function Appointments() {
                           <p className="text-sm text-gray-700 mt-0.5">
                             {new Date(a.date).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}
                           </p>
-                          <span className={`inline-flex items-center gap-1 mt-1 text-xs font-medium ${a.reminderSent ? "text-green-500" : "text-brand-400"}`}>
-                            {a.reminderSent
+                          <span className={`inline-flex items-center gap-1 mt-1 text-xs font-medium ${(a.reminderSent || a.customReminderSent) ? "text-green-500" : "text-brand-400"}`}>
+                            {(a.reminderSent || a.customReminderSent)
                               ? <><CheckCircleIcon className="w-3.5 h-3.5" /> Rappel envoyé</>
-                              : <><ClockIcon className="w-3.5 h-3.5" /> Rappel dans 4h</>}
+                              : a.customReminderDate
+                                ? <><ClockIcon className="w-3.5 h-3.5" /> Rappel le {new Date(a.customReminderDate).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</>
+                                : <><ClockIcon className="w-3.5 h-3.5" /> Rappel programmé</>}
                           </span>
                         </div>
                       </div>
